@@ -471,7 +471,7 @@ describe("CytusPool V2 Contract", async () => {
     });
   });
 
-  describe.only("Upgradeable", async () => {
+  describe("Upgradeable", async () => {
     it ("Should have the same cTokenBalances after upgrade", async () => {
       const amountToBuy = ethers.utils.parseUnits("1000000", 6);
       await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
