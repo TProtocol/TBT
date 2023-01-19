@@ -469,6 +469,31 @@ describe("CytusPool V2 Contract", async () => {
       await buy(investor, amountToBuy);
       await expect(await cytusPool.totalSupply()).to.equal(ethers.utils.parseUnits("1500000", 18));
     });
+
+    it("Should be emit event when buy and sell", async () => {
+      // + 100000 to 1000000
+      const amountToBuy = ethers.utils.parseUnits("1000000", 6);
+      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      const buyCertificate = await craftNonceBasedCertificate(
+        CytusPool.interface.encodeFunctionData("buy", [amountToBuy, EMPTY_CERTIFICATE]),
+        cytusPool,
+        extension,
+        clockMock,
+        investor.address
+      );
+      await expect(cytusPool.connect(investor).buy(amountToBuy, buyCertificate)).to.emit(cytusPool, 'Transfer').withArgs(ethers.constants.AddressZero, investor.address, ethers.utils.parseUnits("1000000", 18));
+
+      // - 500000 to 50000
+      const amountToSell = ethers.utils.parseUnits("500000", 18);
+      const sellCertificate = await craftNonceBasedCertificate(
+        CytusPool.interface.encodeFunctionData("sell", [amountToSell, EMPTY_CERTIFICATE]),
+        cytusPool,
+        extension,
+        clockMock,
+        investor.address
+      );
+      await expect(cytusPool.connect(investor).sell(amountToSell, sellCertificate)).to.emit(cytusPool, 'Transfer').withArgs(investor.address, ethers.constants.AddressZero, ethers.utils.parseUnits("500000", 18));
+    })
   });
 
   describe("Upgradeable", async () => {
