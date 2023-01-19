@@ -375,10 +375,7 @@ contract CytusPoolV2 is
             cTokenAmount = amount.mul(cTokenTotalSupply).div(totalUnderlying);
         }
 
-        cTokenBalances[msg.sender] = cTokenBalances[msg.sender].add(
-            cTokenAmount
-        );
-        cTokenTotalSupply = cTokenTotalSupply.add(cTokenAmount);
+        _mint(msg.sender, cTokenAmount);
         totalUnderlying = totalUnderlying.add(amount);
     }
 
@@ -402,8 +399,7 @@ contract CytusPoolV2 is
             "102"
         );
 
-        cTokenBalances[msg.sender] = cTokenBalances[msg.sender].sub(amount);
-        cTokenTotalSupply = cTokenTotalSupply.sub(amount);
+        _burn(msg.sender, amount);
         totalUnderlying = totalUnderlying.sub(underlyingAmount);
 
         // Instead of transferring underlying token to user, we record the pending withdrawal amount.
@@ -536,6 +532,46 @@ contract CytusPoolV2 is
         _spendAllowance(from, spender, amount);
         _transfer(from, to, amount);
         return true;
+    }
+
+    function _burn(
+        address account,
+        uint256 amount
+    ) internal override {
+        require(account != address(0), "ERC20: burn from the zero address");
+
+        _beforeTokenTransfer(account, address(0), amount);
+
+        uint256 accountBalance = cTokenBalances[account];
+        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+        unchecked {
+            cTokenBalances[account] = accountBalance - amount;
+            // Overflow not possible: amount <= accountBalance <= totalSupply.
+            cTokenTotalSupply -= amount;
+        }
+
+        emit Transfer(account, address(0), amount);
+
+        _afterTokenTransfer(account, address(0), amount);
+
+    }
+
+    function _mint(
+        address account,
+        uint256 amount
+    ) internal override {
+        require(account != address(0), "ERC20: mint to the zero address");
+
+        _beforeTokenTransfer(address(0), account, amount);
+
+        cTokenTotalSupply += amount;
+        unchecked {
+            // Overflow not possible: balance + amount is at most totalSupply + amount, which is checked above.
+            cTokenBalances[account] += amount;
+        }
+        emit Transfer(address(0), account, amount);
+
+        _afterTokenTransfer(address(0), account, amount);
     }
 
     /* -------------------------- End of Partial ERC20 -------------------------- */
