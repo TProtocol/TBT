@@ -13,8 +13,6 @@ const ONE_WEEK = ONE_DAY * 7;
 const ONE_MONTH = ONE_DAY * 30;
 const ONE_YEAR = ONE_DAY * 365;
 
-const CERTIFICATE_SIGNER = "0xEffFB9eeE02439b8fabC8b0F8Ebe056ccFca2041";
-const CERTIFICATE_SIGNER_PRIVATE_KEY = "0x2234fb8310292f163229bcfc19ff5e023af2fbd21505efbab4af00b96ae0971d";
 
 const EMPTY_CERTIFICATE = "0x";
 const CERTIFICATE_VALIDITY_PERIOD = 1;
@@ -92,9 +90,8 @@ const craftNonceBasedCertificate = async (_txPayload, _token, _extension, _clock
 };
 
 
-describe("CytusPool V2 Contract", async () => {
+describe("CytusPool V2 Permission Contract", async () => {
   let cytusPool;
-  let extension;
   let usdcToken;
   let clockMock;
 
@@ -107,51 +104,31 @@ describe("CytusPool V2 Contract", async () => {
   let vault;
 
   let admin;
-  let kycManager;
   let poolManager;
 
   let now;
 
   const buy = async (account, amount) => {
-    const certificate = await craftNonceBasedCertificate(
-      CytusPool.interface.encodeFunctionData("buy", [amount, EMPTY_CERTIFICATE]),
-      cytusPool,
-      extension,
-      clockMock,
-      account.address
-    );
-    await cytusPool.connect(account).buy(amount, certificate);
+    await cytusPool.connect(account).buy(amount);
   }
 
   const sell = async (account, amount) => {
-    const certificate = await craftNonceBasedCertificate(
-      CytusPool.interface.encodeFunctionData("sell", [amount, EMPTY_CERTIFICATE]),
-      cytusPool,
-      extension,
-      clockMock,
-      account.address
-    );
-    await cytusPool.connect(account).sell(amount, certificate);
+    await cytusPool.connect(account).sell(amount);
   }
 
   beforeEach(async () => {
-    [controller, treasury, vault, investor, investor2, investor3, deployer, admin, kycManager, poolManager] = await ethers.getSigners();
+    [controller, treasury, vault, investor, investor2, investor3, deployer, admin, poolManager] = await ethers.getSigners();
     now = (await ethers.provider.getBlock("latest")).timestamp;
     const ERC20Token = await ethers.getContractFactory("ERC20Token");
     usdcToken = await ERC20Token.connect(deployer).deploy("USDC", "USDC", 6);
     await usdcToken.connect(deployer).mint(investor.address, ethers.utils.parseUnits("1000000000", 6)); // 1 billion USDC
     await usdcToken.connect(deployer).mint(investor2.address, ethers.utils.parseUnits("1000000000", 6)); // 1 billion USDC
 
-    const Extension = await ethers.getContractFactory("ERC1400TokensValidator");
-    extension = await Extension.connect(deployer).deploy();
-    CytusPool = await ethers.getContractFactory("CytusPoolV2");
+    CytusPool = await ethers.getContractFactory("CytusPoolV2Permission");
     cytusPool = await upgrades.deployProxy(CytusPool, [
       "Cytus Pool 1",
       "CP1",
-      extension.address,
       admin.address,
-      CERTIFICATE_SIGNER,
-      [controller.address],
       usdcToken.address,
       0,
       vault.address,
@@ -180,107 +157,44 @@ describe("CytusPool V2 Contract", async () => {
   });
 
   describe("Buy", async () => {
-    it("Should be able to buy with correct certificate", async () => {
+    it("Should be able to buy", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
       const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
       await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("buy", [amountToBuy, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await cytusPool.connect(investor).buy(amountToBuy, certificate);
+      await cytusPool.connect(investor).buy(amountToBuy);
     });
 
-    it("Should not be able to buy with wrong certificate", async () => {
-      now = now + ONE_DAY;
-      await mineBlockWithTimestamp(ethers.provider, now);
-      const amountToBuy = ethers.utils.parseUnits("100", 18);
-      const wrongAmountToBuy = ethers.utils.parseUnits("99", 18);
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("buy", [amountToBuy, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await expect(cytusPool.connect(investor).buy(wrongAmountToBuy, certificate)).to.be.revertedWith("54");
-    });
   });
 
   describe("Sell", async () => {
     beforeEach(async () => {
       const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
       await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("buy", [amountToBuy, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await cytusPool.connect(investor).buy(amountToBuy, certificate);
+      await cytusPool.connect(investor).buy(amountToBuy);
     });
 
-    it("Should be able to sell with correct certificate", async () => {
+    it("Should be able to sell", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
       const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("sell", [amountToSell, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await cytusPool.connect(investor).sell(amountToSell, certificate);
+      await cytusPool.connect(investor).sell(amountToSell);
     });
 
     it("Should not be able to sell more than balance", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
       const amountToSell = (await cytusPool.connect(investor).cTokenBalances(investor.address)).add(1);
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("sell", [amountToSell, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await expect(cytusPool.connect(investor).sell(amountToSell, certificate)).to.be.revertedWith("100");
+      await expect(cytusPool.connect(investor).sell(amountToSell)).to.be.revertedWith("100");
     });
 
-    it("Should not be able to sell with wrong certificate", async () => {
-      now = now + ONE_DAY;
-      await mineBlockWithTimestamp(ethers.provider, now);
-      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      const wrongAmountToSell = amountToSell.sub(1);
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("sell", [amountToSell, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await expect(cytusPool.connect(investor).sell(wrongAmountToSell, certificate)).to.be.revertedWith("54");
-    });
 
     it("Should not be able to sell all if left capital will be below lower bound", async () => {
       await cytusPool.connect(admin).setCapitalLowerBound(1);
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
       const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("sell", [amountToSell, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await expect(cytusPool.connect(investor).sell(amountToSell, certificate)).to.be.revertedWith("102");
+      await expect(cytusPool.connect(investor).sell(amountToSell)).to.be.revertedWith("102");
     });
 
     it("Should be able to sell all if left capital will be equal or more than lower bound", async () => {
@@ -288,14 +202,7 @@ describe("CytusPool V2 Contract", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
       const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("sell", [amountToSell, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await cytusPool.connect(investor).sell(amountToSell, certificate);
+      await cytusPool.connect(investor).sell(amountToSell);
     });
 
 
@@ -306,14 +213,7 @@ describe("CytusPool V2 Contract", async () => {
       const amountToSell = (await cytusPool.connect(investor).cTokenBalances(investor.address)).div(2);
       const totalUnderlying = await cytusPool.totalUnderlying();
       await cytusPool.connect(admin).setCapitalLowerBound(totalUnderlying.div(2).add(1));
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("sell", [amountToSell, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await expect(cytusPool.connect(investor).sell(amountToSell, certificate)).to.be.revertedWith("102");
+      await expect(cytusPool.connect(investor).sell(amountToSell)).to.be.revertedWith("102");
     });
 
     it("Should be able to sell a half if left capital will be equal or more than lower bound", async () => {
@@ -323,14 +223,7 @@ describe("CytusPool V2 Contract", async () => {
       const amountToSell = (await cytusPool.connect(investor).cTokenBalances(investor.address)).div(2);
       const totalUnderlying = await cytusPool.totalUnderlying();
       await cytusPool.connect(admin).setCapitalLowerBound(totalUnderlying.div(2));
-      const certificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("sell", [amountToSell, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await cytusPool.connect(investor).sell(amountToSell, certificate);
+      await cytusPool.connect(investor).sell(amountToSell);
     });
   });
 
@@ -404,45 +297,14 @@ describe("CytusPool V2 Contract", async () => {
       await cytusPool.connect(poolManager).setVault(vault.address)
       await cytusPool.connect(poolManager).setTreasury(treasury.address)
     })
-
-    it("Should not be able to set white/black list without KYC_MANAGER_ROLE", async () => {
-      await expect(cytusPool.connect(kycManager).updateAllowList([investor.address, investor2.address], true)).to.be.reverted;
-    })
-
-    it("Should be able to white/black list with KYC_MANAGER_ROLE", async () => {
-      const KYC_MANAGER_ROLE = await cytusPool.KYC_MANAGER_ROLE();
-      await cytusPool.connect(admin).grantRole(KYC_MANAGER_ROLE, kycManager.address)
-      await cytusPool.connect(kycManager).updateAllowList([investor.address, investor2.address], true)
-    })
   })
 
   describe("ERC20", async () => {
-    it("Should not be able to transfer in allowlist mode", async () => {
-      const amountToBuy = ethers.utils.parseUnits("1000000", 6);
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      await buy(investor, amountToBuy);
-      await expect(await cytusPool.balanceOf(investor.address)).to.equal(ethers.utils.parseUnits("1000000", 18));
-      await expect(cytusPool.connect(investor).transfer(investor2.address, ethers.utils.parseUnits("100", 18))).to.be.reverted;
-
-      await cytusPool.connect(admin).setVerificationMode(VerificationMode.ALLOW_LIST);
-      await cytusPool.connect(admin).updateAllowList([investor.address, investor2.address], true);
-      
-      await cytusPool.connect(investor).transfer(investor2.address, ethers.utils.parseUnits("100", 18));
-
-      await expect(await cytusPool.balanceOf(investor.address)).to.equal(ethers.utils.parseUnits("999900", 18));
-      await expect(await cytusPool.balanceOf(investor2.address)).to.equal(ethers.utils.parseUnits("100", 18));
-    });
     
     it("Should be able to approve and see allowence and transferFrom", async () => {
       const amountToBuy = ethers.utils.parseUnits("1000000", 6);
       await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
       await buy(investor, amountToBuy);
-
-      // not allowed in certificate mode.
-      await expect(cytusPool.connect(investor).approve(investor2.address, ethers.utils.parseUnits("1000", 18))).to.be.reverted;
-
-      await cytusPool.connect(admin).setVerificationMode(VerificationMode.ALLOW_LIST);
-      await cytusPool.connect(admin).updateAllowList([investor.address, investor2.address, investor3.address], true);
 
       await cytusPool.connect(investor).approve(investor2.address, ethers.utils.parseUnits("1000", 18));
 
@@ -474,25 +336,12 @@ describe("CytusPool V2 Contract", async () => {
       // + 100000 to 1000000
       const amountToBuy = ethers.utils.parseUnits("1000000", 6);
       await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      const buyCertificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("buy", [amountToBuy, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await expect(cytusPool.connect(investor).buy(amountToBuy, buyCertificate)).to.emit(cytusPool, 'Transfer').withArgs(ethers.constants.AddressZero, investor.address, ethers.utils.parseUnits("1000000", 18));
+
+      await expect(cytusPool.connect(investor).buy(amountToBuy)).to.emit(cytusPool, 'Transfer').withArgs(ethers.constants.AddressZero, investor.address, ethers.utils.parseUnits("1000000", 18));
 
       // - 500000 to 50000
       const amountToSell = ethers.utils.parseUnits("500000", 18);
-      const sellCertificate = await craftNonceBasedCertificate(
-        CytusPool.interface.encodeFunctionData("sell", [amountToSell, EMPTY_CERTIFICATE]),
-        cytusPool,
-        extension,
-        clockMock,
-        investor.address
-      );
-      await expect(cytusPool.connect(investor).sell(amountToSell, sellCertificate)).to.emit(cytusPool, 'Transfer').withArgs(investor.address, ethers.constants.AddressZero, ethers.utils.parseUnits("500000", 18));
+      await expect(cytusPool.connect(investor).sell(amountToSell)).to.emit(cytusPool, 'Transfer').withArgs(investor.address, ethers.constants.AddressZero, ethers.utils.parseUnits("500000", 18));
     })
   });
 
@@ -503,7 +352,7 @@ describe("CytusPool V2 Contract", async () => {
       await buy(investor, amountToBuy);
       const cTokenBalanceOld = await cytusPool.cTokenBalances(investor.address);
 
-      CytusPoolUpgraded = await ethers.getContractFactory("CytusPoolV2UpgradedMock");
+      CytusPoolUpgraded = await ethers.getContractFactory("CytusPoolV2PermissionUpgradedMock");
       let cytusPoolUpgraded = await upgrades.upgradeProxy(cytusPool.address, CytusPoolUpgraded );
       await cytusPoolUpgraded.deployed();
 
