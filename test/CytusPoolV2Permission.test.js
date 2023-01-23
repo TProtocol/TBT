@@ -102,6 +102,7 @@ describe("CytusPool V2 Permission Contract", async () => {
   let controller;
   let treasury;
   let vault;
+  let fee_collection;
 
   let admin;
   let poolManager;
@@ -117,7 +118,7 @@ describe("CytusPool V2 Permission Contract", async () => {
   }
 
   beforeEach(async () => {
-    [controller, treasury, vault, investor, investor2, investor3, deployer, admin, poolManager] = await ethers.getSigners();
+    [controller, treasury, vault, investor, investor2, investor3, deployer, admin, poolManager, fee_collection] = await ethers.getSigners();
     now = (await ethers.provider.getBlock("latest")).timestamp;
     const ERC20Token = await ethers.getContractFactory("ERC20Token");
     usdcToken = await ERC20Token.connect(deployer).deploy("USDC", "USDC", 6);
@@ -133,6 +134,7 @@ describe("CytusPool V2 Permission Contract", async () => {
       0,
       vault.address,
       treasury.address,
+      fee_collection.address
     ]);
     await cytusPool.deployed();
     // cytusPool = await CytusPool.connect(deployer).deploy(
@@ -165,6 +167,15 @@ describe("CytusPool V2 Permission Contract", async () => {
       await cytusPool.connect(investor).buy(amountToBuy);
     });
 
+    it("Should not be able to buy when pause", async () => {
+      now = now + ONE_DAY;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
+      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await cytusPool.connect(admin).pause();
+      await expect(cytusPool.connect(investor).buy(amountToBuy)).to.be.reverted;
+    });
+
   });
 
   describe("Sell", async () => {
@@ -179,6 +190,14 @@ describe("CytusPool V2 Permission Contract", async () => {
       await mineBlockWithTimestamp(ethers.provider, now);
       const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
       await cytusPool.connect(investor).sell(amountToSell);
+    });
+
+    it("Should not be able to sell when pause", async () => {
+      now = now + ONE_DAY;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
+      await cytusPool.connect(admin).pause();
+      await expect(cytusPool.connect(investor).sell(amountToSell)).to.be.reverted;
     });
 
     it("Should not be able to sell more than balance", async () => {
@@ -296,6 +315,75 @@ describe("CytusPool V2 Permission Contract", async () => {
       await cytusPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))
       await cytusPool.connect(poolManager).setVault(vault.address)
       await cytusPool.connect(poolManager).setTreasury(treasury.address)
+    })
+
+    it("Should not be able to change pause settings without ADMIN_ROLE", async () => {
+      await expect(cytusPool.connect(poolManager).pause()).to.be.reverted;
+    })
+
+    it("Should be able to change pause settings with ADMIN_ROLE", async () => {
+      await cytusPool.connect(admin).pause();
+      await cytusPool.connect(admin).unpause();
+    })
+  })
+
+  describe("FEE", async() => {
+    beforeEach(async ()=> {
+      const POOL_MANAGER_ROLE = await cytusPool.POOL_MANAGER_ROLE();
+      await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
+      // set 1% fee
+      await cytusPool.connect(poolManager).setMintFeeRate(1000000);
+      await cytusPool.connect(poolManager).setWithdrawFeeRate(1000000);
+    })
+
+    it("Should not be able to change fee more then 1%", async () => {
+      await expect(cytusPool.connect(poolManager).setMintFeeRate(10000000)).to.be.reverted;
+      await expect(cytusPool.connect(poolManager).setWithdrawFeeRate(10000000)).to.be.reverted;
+    })
+
+    it("Should be able to buy with fee", async () => {
+      const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
+      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await cytusPool.connect(investor).buy(amountToBuy);
+      // 1% fee -> 99 cToken
+      expect(await cytusPool.balanceOf(investor.address)).to.equal(ethers.utils.parseUnits("99", 18));
+      // collect fee 
+      expect(await usdcToken.balanceOf(fee_collection.address)).to.equal(ethers.utils.parseUnits("1", 6));
+    })
+
+    it("Should be able to sell with fee", async () => {
+      const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
+      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await cytusPool.connect(investor).buy(amountToBuy);
+
+      const beforeFeeCollectBalance = await usdcToken.balanceOf(fee_collection.address);
+      const beforeInvestorBalance = await usdcToken.balanceOf(investor.address);
+
+      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
+      await cytusPool.connect(investor).sell(amountToSell);
+
+
+      const pendingWithdrawal = await cytusPool.connect(investor).getPendingWithdrawal(investor.address);
+      await cytusPool.connect(investor).withdrawUnderlyingToken(pendingWithdrawal);
+      // equal 99 * 0.99
+      const withdrawUnderlyingAmount = pendingWithdrawal.mul(99000000).div(100000000);
+      expect(await usdcToken.balanceOf(investor.address)).to.equal(beforeInvestorBalance.add(withdrawUnderlyingAmount));
+
+      const afterFeeCollectBalance = await usdcToken.balanceOf(fee_collection.address); 
+      expect(afterFeeCollectBalance).to.equal(beforeFeeCollectBalance.add(pendingWithdrawal.sub(withdrawUnderlyingAmount)));
+
+    })
+  })
+
+  describe("APR", async() => {
+    beforeEach(async ()=> {
+      const POOL_MANAGER_ROLE = await cytusPool.POOL_MANAGER_ROLE();
+      await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
+    })
+
+    it("Should not be able to change apr more then 10%", async () =>{
+      await cytusPool.connect(poolManager).setTargetAPR(10000000);
+      await expect(cytusPool.connect(poolManager).setTargetAPR(100000000)).to.be.reverted;
     })
   })
 

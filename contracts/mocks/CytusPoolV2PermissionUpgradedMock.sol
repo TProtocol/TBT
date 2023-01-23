@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 import "../tools/DomainAware.sol";
 import "../roles/MinterRole.sol";
@@ -15,13 +16,19 @@ import "hardhat/console.sol";
 contract CytusPoolV2PermissionUpgradedMock is
     DomainAware,
     AccessControlUpgradeable,
-    ERC20Upgradeable
+    ERC20Upgradeable,
+    PausableUpgradeable
 {
     using SafeMathUpgradeable for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant POOL_MANAGER_ROLE = keccak256("POOL_MANAGER_ROLE");
+
+    // It's used to calculate the interest base.
+    uint256 public constant APR_COEFFICIENT = 10 ** 8;
+    // Used to calculate the fee base.
+    uint256 public constant FEE_COEFFICIENT = 10 ** 8;
 
     // This token's decimals is 18, USDC's decimals is 6, so the INITIAL_CTOKEN_TO_UNDERLYING is 10**(18-6)
     uint256 public constant INITIAL_CTOKEN_TO_UNDERLYING = 10**12;
@@ -37,12 +44,20 @@ contract CytusPoolV2PermissionUpgradedMock is
     address public vault;
     // Treasury, used to receive USDC from user when buy cToken.
     address public treasury;
+    // Fee Collection, used to receive fee when mint or redeem.
+    address public fee_collection;
 
     // withdrawFeeRate: 0.1% => 100000 (10 ** 5)
     // withdrawFeeRate: 10% => 10000000 (10 ** 7)
     // withdrawFeeRate: 100% => 100000000 (10 ** 8)
     // It's used when call withdrawUnderlyingToken method.
     uint256 public withdrawFeeRate;
+
+    // mintFeeRate: 0.1% => 100000 (10 ** 5)
+    // mintFeeRate: 10% => 10000000 (10 ** 7)
+    // mintFeeRate: 100% => 100000000 (10 ** 8)
+    // It's used when call buy method.
+    uint256 public mintFeeRate;
 
     // Pending withdrawals, value is the USDC amount, user can claim whenever the vault has enough USDC.
     mapping(address => uint256) public pendingWithdrawals;
@@ -55,8 +70,11 @@ contract CytusPoolV2PermissionUpgradedMock is
     // targetAPR: 100% => 100000000 (10 ** 8)
     uint256 public targetAPR;
 
-    uint256 public minAPR;
     uint256 public maxAPR;
+
+    // Max fee rates can't over then 1%
+    uint256 public constant maxMintFeeRate = 10 ** 6;
+    uint256 public constant maxWithdrawFeeRate = 10 ** 6;
 
     event WithdrawUnderlyingToken(
         address indexed user,
@@ -75,11 +93,13 @@ contract CytusPoolV2PermissionUpgradedMock is
         IERC20Upgradeable _underlyingToken,
         uint256 _capitalLowerBound,
         address _treasury,
-        address _vault
+        address _vault,
+        address _fee_colletion
     ) public initializer {
 
         AccessControlUpgradeable.__AccessControl_init();
         ERC20Upgradeable.__ERC20_init(name, symbol);
+        PausableUpgradeable.__Pausable_init();
         DomainAware.__DomainAware_init();
 
         // TODO: revisit.
@@ -90,13 +110,31 @@ contract CytusPoolV2PermissionUpgradedMock is
         _setupRole(POOL_MANAGER_ROLE, admin);
 
         underlyingToken = _underlyingToken;
+        
         lastCheckpoint = block.timestamp;
         capitalLowerBound = _capitalLowerBound;
         vault = _vault;
         treasury = _treasury;
+        fee_collection = _fee_colletion;
 
-        minAPR = 0;
+        // const, reduce risk for now.
+        // It's 10%.
         maxAPR = 10**7;
+    }
+
+
+    /* -------------------------------------------------------------------------- */
+    /*                                Admin Settings                               */
+    /* -------------------------------------------------------------------------- */
+
+    // Pause the contract. Revert if already paused.
+    function pause() external onlyRole(ADMIN_ROLE) {
+        PausableUpgradeable._pause();
+    }
+
+    // Unpause the contract. Revert if already unpaused.
+    function unpause() external onlyRole(ADMIN_ROLE) {
+        PausableUpgradeable._unpause();
     }
 
 
@@ -109,6 +147,7 @@ contract CytusPoolV2PermissionUpgradedMock is
         onlyRole(POOL_MANAGER_ROLE)
         realizeReward
     {
+        require(_targetAPR <= maxAPR, "target apr should be less than max apr");
         targetAPR = _targetAPR;
     }
 
@@ -134,6 +173,21 @@ contract CytusPoolV2PermissionUpgradedMock is
         treasury = _treasury;
     }
 
+    function setFeeCollection(address _fee_collection) external onlyRole(POOL_MANAGER_ROLE) {
+        fee_collection = _fee_collection;
+    }
+
+
+    function setMintFeeRate(uint256 _mintFeeRate)
+        external
+        onlyRole(POOL_MANAGER_ROLE)
+    {
+        require(
+            _mintFeeRate <= maxMintFeeRate,
+            "Mint fee rate should be less than 1%"
+        );
+        mintFeeRate = _mintFeeRate;
+    }
 
     // TOOD: revisit the ACL. Currently is not elegant. (can't set global admin)
     function setWithdrawFeeRate(uint256 _withdrawFeeRate)
@@ -141,27 +195,15 @@ contract CytusPoolV2PermissionUpgradedMock is
         onlyRole(POOL_MANAGER_ROLE)
     {
         require(
-            _withdrawFeeRate <= 10**8,
-            "withdraw fee rate should be less than 100%"
+            _withdrawFeeRate <= maxWithdrawFeeRate,
+            "withdraw fee rate should be less than 1%"
         );
         withdrawFeeRate = _withdrawFeeRate;
     }
 
 
-    function setAprRange(uint256 _minAPR, uint256 _maxAPR)
-        external
-        onlyRole(POOL_MANAGER_ROLE)
-    {
-        require(_minAPR <= _maxAPR, "min apr should be less than max apr");
-        minAPR = _minAPR;
-        maxAPR = _maxAPR;
-    }
-
     /* -------------------------- End of Pool Settings -------------------------- */
 
-
-
-    /* --------------------------- End of KYC Settings -------------------------- */
 
 
 
@@ -186,7 +228,7 @@ contract CytusPoolV2PermissionUpgradedMock is
     function getRPS() public view returns (uint256) {
         // TODO: If use totalUnderlying, then the interest also incurs interest, do we want to switch to principal?
         // TODO: remove 10**8, and use constant.
-        return targetAPR.mul(totalUnderlying).div(365 days).div(10**8);
+        return targetAPR.mul(totalUnderlying).div(365 days).div(APR_COEFFICIENT);
     }
 
     function getPendingWithdrawal(address account) public view returns (uint256) {
@@ -216,9 +258,19 @@ contract CytusPoolV2PermissionUpgradedMock is
     // @param data: certificate data
     function buy(uint256 amount)
         external
+        whenNotPaused
         realizeReward
     {
-        underlyingToken.safeTransferFrom(msg.sender, treasury, amount);
+        // calculate fee
+        uint256 feeAmount = amount.mul(mintFeeRate).div(FEE_COEFFICIENT);
+        uint256 amountAfterFee = amount.sub(feeAmount);
+        underlyingToken.safeTransferFrom(msg.sender, treasury, amountAfterFee);
+        // collect fee
+        if (feeAmount != 0){
+            underlyingToken.safeTransferFrom(msg.sender, fee_collection, feeAmount);
+        }
+
+        amount = amountAfterFee;
 
         uint256 cTokenAmount;
         if (cTokenTotalSupply == 0 || totalUnderlying == 0) {
@@ -234,6 +286,7 @@ contract CytusPoolV2PermissionUpgradedMock is
     // @param amount: the amount of cToken, 1 cToken = 10**18, which eaquals to 1 USDC (if not interest).
     function sell(uint256 amount)
         external
+        whenNotPaused
         realizeReward
     {
         require(amount <= cTokenBalances[msg.sender], "100");
@@ -261,6 +314,7 @@ contract CytusPoolV2PermissionUpgradedMock is
 
     function withdrawUnderlyingToken(uint256 amount)
         external
+        whenNotPaused
     {
         require(pendingWithdrawals[msg.sender] >= amount, "105");
         require(underlyingToken.balanceOf(vault) >= amount, "106");
@@ -268,12 +322,14 @@ contract CytusPoolV2PermissionUpgradedMock is
             amount
         );
         totalPendingWithdrawals = totalPendingWithdrawals.sub(amount);
-        uint256 amountAfterFee = amount.mul(10**8 - withdrawFeeRate).div(10**8);
+        uint256 feeAmount = amount.mul(withdrawFeeRate).div(FEE_COEFFICIENT);
+        uint256 amountAfterFee = amount.sub(feeAmount);
         underlyingToken.safeTransferFrom(vault, msg.sender, amountAfterFee);
+        underlyingToken.safeTransferFrom(vault, fee_collection, feeAmount);
         emit WithdrawUnderlyingToken(
             msg.sender,
             amount,
-            amount.sub(amountAfterFee)
+            amountAfterFee
         );
     }
 
@@ -423,7 +479,6 @@ contract CytusPoolV2PermissionUpgradedMock is
     }
 
     /* --------------------------- End of Domain Aware -------------------------- */
-
     function mockNewFunction() public pure returns (string memory) {
         return "Hello World!";
     }
