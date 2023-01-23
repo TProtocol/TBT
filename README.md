@@ -7,6 +7,7 @@
 - 101: (sell) `totalUnderlying` is less than zero.
 - 104: (sell) `cTokenTotalSupply` is less or equan to zero.
 - 102: (sell) after selling, the `totalUnderlying` is less than `capitalLowerBound`.
-- 105: (withdrawUnderlyingToken) the amount to withdraw is more than pending withdrawals of the sender.
-- 106: (withdrawUnderlyingToken) the vault does not have enough underlying token to withdraw.
-- 108: 
+- 105: (withdrawUnderlyingTokenByID) the withdrawal order is not caller.
+- 106: (withdrawUnderlyingTokenByID) the withdrawal order is done.
+- 107: (withdrawUnderlyingTokenByID) the vault does not have enough underlying token to withdraw.
+- 108: (withdrawUnderlyingTokenByID) the withdrawal order is not ready for withdral.

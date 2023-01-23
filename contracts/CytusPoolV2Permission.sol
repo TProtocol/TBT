@@ -76,6 +76,31 @@ contract CytusPoolV2Permission is
     uint256 public constant maxMintFeeRate = 10 ** 6;
     uint256 public constant maxWithdrawFeeRate = 10 ** 6;
 
+    // withdrawal index.
+    uint256 public withdrawalIndex;
+    // the time for redeem from bill.
+    uint256 public processPeriod;
+
+    struct WithdrawalDetail{
+        uint256 id;
+        uint256 timestamp;
+        address user;
+        uint256 underlyingAmount;
+        // False not withdrawal, or True.
+        bool isDone;
+    }
+
+    // Mapping from withdrawal index to WithdrawalDetail.
+    mapping(uint256 => WithdrawalDetail) public withdrawalDetails;
+
+    event WithdrawRequested(
+        uint256 id,
+        uint256 timestamp,
+        address indexed user,
+        uint256 cTokenAmount,
+        uint256 underlyingAmount
+    );
+
     event WithdrawUnderlyingToken(
         address indexed user,
         uint256 amount,
@@ -120,6 +145,9 @@ contract CytusPoolV2Permission is
         // const, reduce risk for now.
         // It's 10%.
         maxAPR = 10**7;
+
+        // default 3 days
+        processPeriod = 3 days;
     }
 
 
@@ -151,6 +179,12 @@ contract CytusPoolV2Permission is
         targetAPR = _targetAPR;
     }
 
+    function setProcessPeriod(uint256 _processPeriod)
+        external
+        onlyRole(POOL_MANAGER_ROLE)
+    {
+        processPeriod = _processPeriod;
+    }
 
     // If lower bound is $1m USDC, the value should be 1,000,000 * 10**6
     function setCapitalLowerBound(uint256 _capitalLowerBound)
@@ -305,19 +339,44 @@ contract CytusPoolV2Permission is
         _burn(msg.sender, amount);
         totalUnderlying = totalUnderlying.sub(underlyingAmount);
 
+        withdrawalIndex++;
+        withdrawalDetails[withdrawalIndex] = WithdrawalDetail({
+            id: withdrawalIndex,
+            timestamp: block.timestamp,
+            user: msg.sender,
+            underlyingAmount: underlyingAmount,
+            isDone: false
+        });
+
         // Instead of transferring underlying token to user, we record the pending withdrawal amount.
         pendingWithdrawals[msg.sender] = pendingWithdrawals[msg.sender].add(
             underlyingAmount
         );
+
         totalPendingWithdrawals = totalPendingWithdrawals.add(underlyingAmount);
+
+        emit WithdrawRequested(
+            withdrawalIndex,
+            block.timestamp,
+            msg.sender,
+            amount,
+            underlyingAmount
+        );
     }
 
-    function withdrawUnderlyingToken(uint256 amount)
+    function withdrawUnderlyingTokenById(uint256 _id)
         external
         whenNotPaused
     {
-        require(pendingWithdrawals[msg.sender] >= amount, "105");
-        require(underlyingToken.balanceOf(vault) >= amount, "106");
+        require(withdrawalDetails[_id].user == msg.sender, "105");
+        require(withdrawalDetails[_id].isDone == false, "106");
+        require(underlyingToken.balanceOf(vault) >= withdrawalDetails[_id].underlyingAmount, "107");
+        require(withdrawalDetails[_id].timestamp + processPeriod <= block.timestamp, "108");
+
+        uint256 amount = withdrawalDetails[_id].underlyingAmount;
+
+        withdrawalDetails[_id].isDone = true;
+
         pendingWithdrawals[msg.sender] = pendingWithdrawals[msg.sender].sub(
             amount
         );

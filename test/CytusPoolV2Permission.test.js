@@ -303,18 +303,26 @@ describe("CytusPool V2 Permission Contract", async () => {
   describe("RBAC", async () => {
     it("Should not be able to change pool settings without POOL_MANAGER_ROLE", async () => {
       await expect(cytusPool.connect(poolManager).setTargetAPR(1000000)).to.be.reverted;
+      await expect(cytusPool.connect(poolManager).setMintFeeRate(1)).to.be.reverted;
+      await expect(cytusPool.connect(poolManager).setWithdrawFeeRate(1)).to.be.reverted;
       await expect(cytusPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))).to.be.reverted;
       await expect(cytusPool.connect(poolManager).setVault(vault.address)).to.be.reverted;
       await expect(cytusPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted;
+      await expect(cytusPool.connect(poolManager).setFeeCollection(fee_collection.address)).to.be.reverted;
+      await expect(cytusPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted;
     })
 
     it("Should be able to change pool settings with POOL_MANAGER_ROLE", async () => {
       const POOL_MANAGER_ROLE = await cytusPool.POOL_MANAGER_ROLE();
-      await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address)
+      await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
       await cytusPool.connect(poolManager).setTargetAPR(1000000);
+      await cytusPool.connect(poolManager).setMintFeeRate(1);
+      await cytusPool.connect(poolManager).setWithdrawFeeRate(1);
       await cytusPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))
-      await cytusPool.connect(poolManager).setVault(vault.address)
-      await cytusPool.connect(poolManager).setTreasury(treasury.address)
+      await cytusPool.connect(poolManager).setVault(vault.address);
+      await cytusPool.connect(poolManager).setTreasury(treasury.address);
+      await cytusPool.connect(poolManager).setFeeCollection(fee_collection.address);
+      await cytusPool.connect(poolManager).setProcessPeriod(100);
     })
 
     it("Should not be able to change pause settings without ADMIN_ROLE", async () => {
@@ -327,10 +335,53 @@ describe("CytusPool V2 Permission Contract", async () => {
     })
   })
 
+  describe("Withdrawal", async() => {
+    beforeEach(async () => {
+      const POOL_MANAGER_ROLE = await cytusPool.POOL_MANAGER_ROLE();
+      await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
+      await cytusPool.connect(poolManager).setProcessPeriod(ONE_DAY);
+      const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
+      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await cytusPool.connect(investor).buy(amountToBuy);
+      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
+      await cytusPool.connect(investor).sell(amountToSell);
+    });
+
+    it("Should be able to withdrawal", async () => {
+      now = now + ONE_WEEK;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      const orderId = await cytusPool.withdrawalIndex();
+      await cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId);
+    })
+
+    it("Should be not able to withdrawal with other account", async () => {
+      now = now + ONE_WEEK;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      const orderId = await cytusPool.withdrawalIndex();
+      await expect(cytusPool.connect(investor2).withdrawUnderlyingTokenById(orderId)).to.be.revertedWith("105");
+    })
+
+    it("Should be not able to withdrawal when order is done", async () => {
+      now = now + ONE_WEEK;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      const orderId = await cytusPool.withdrawalIndex();
+      await cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId);
+      await expect(cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId)).to.be.revertedWith("106");
+    })
+
+    it("Should be not able to withdrawal when it's not yet processed", async () => {
+      now = now + ONE_HOUR;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      const orderId = await cytusPool.withdrawalIndex();
+      await expect(cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId)).to.be.revertedWith("108");
+    })
+  })
+
   describe("FEE", async() => {
     beforeEach(async ()=> {
       const POOL_MANAGER_ROLE = await cytusPool.POOL_MANAGER_ROLE();
       await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
+      await cytusPool.connect(poolManager).setProcessPeriod(0);
       // set 1% fee
       await cytusPool.connect(poolManager).setMintFeeRate(1000000);
       await cytusPool.connect(poolManager).setWithdrawFeeRate(1000000);
@@ -362,9 +413,10 @@ describe("CytusPool V2 Permission Contract", async () => {
       const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
       await cytusPool.connect(investor).sell(amountToSell);
 
+      const orderId = await cytusPool.withdrawalIndex();
 
-      const pendingWithdrawal = await cytusPool.connect(investor).getPendingWithdrawal(investor.address);
-      await cytusPool.connect(investor).withdrawUnderlyingToken(pendingWithdrawal);
+      const pendingWithdrawal = (await cytusPool.connect(investor).withdrawalDetails(orderId)).underlyingAmount;
+      await cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId);
       // equal 99 * 0.99
       const withdrawUnderlyingAmount = pendingWithdrawal.mul(99000000).div(100000000);
       expect(await usdcToken.balanceOf(investor.address)).to.equal(beforeInvestorBalance.add(withdrawUnderlyingAmount));
