@@ -90,8 +90,8 @@ const craftNonceBasedCertificate = async (_txPayload, _token, _extension, _clock
 };
 
 
-describe("CytusPool V2 Permission Contract", async () => {
-  let cytusPool;
+describe("TBTPool V2 Permission Contract", async () => {
+  let tbtPool;
   let usdcToken;
   let clockMock;
 
@@ -110,11 +110,11 @@ describe("CytusPool V2 Permission Contract", async () => {
   let now;
 
   const buy = async (account, amount) => {
-    await cytusPool.connect(account).buy(amount);
+    await tbtPool.connect(account).buy(amount);
   }
 
   const sell = async (account, amount) => {
-    await cytusPool.connect(account).sell(amount);
+    await tbtPool.connect(account).sell(amount);
   }
 
   beforeEach(async () => {
@@ -125,9 +125,9 @@ describe("CytusPool V2 Permission Contract", async () => {
     await usdcToken.connect(deployer).mint(investor.address, ethers.utils.parseUnits("1000000000", 6)); // 1 billion USDC
     await usdcToken.connect(deployer).mint(investor2.address, ethers.utils.parseUnits("1000000000", 6)); // 1 billion USDC
 
-    CytusPool = await ethers.getContractFactory("CytusPoolV2Permission");
-    cytusPool = await upgrades.deployProxy(CytusPool, [
-      "Cytus Pool 1",
+    TBTPool = await ethers.getContractFactory("TBTPoolV2Permission");
+    tbtPool = await upgrades.deployProxy(TBTPool, [
+      "TBT Pool 1",
       "CP1",
       admin.address,
       usdcToken.address,
@@ -136,9 +136,9 @@ describe("CytusPool V2 Permission Contract", async () => {
       treasury.address,
       fee_collection.address
     ]);
-    await cytusPool.deployed();
-    // cytusPool = await CytusPool.connect(deployer).deploy(
-    //   "Cytus Pool 1",
+    await tbtPool.deployed();
+    // tbtPool = await TBTPool.connect(deployer).deploy(
+    //   "TBT Pool 1",
     //   "CP1",
     //   extension.address,
     //   admin.address,
@@ -150,7 +150,7 @@ describe("CytusPool V2 Permission Contract", async () => {
     //   treasury.address,
     // );
     await usdcToken.connect(deployer).mint(treasury.address, ethers.utils.parseUnits("1000000000", 6)); // 1 billion USDC
-    await usdcToken.connect(treasury).approve(cytusPool.address, ethers.utils.parseUnits("1000000000", 6)); // 1 billion USDC
+    await usdcToken.connect(treasury).approve(tbtPool.address, ethers.utils.parseUnits("1000000000", 6)); // 1 billion USDC
 
     const ClockMock = await ethers.getContractFactory("ClockMock");
     clockMock = await ClockMock.deploy();
@@ -163,17 +163,17 @@ describe("CytusPool V2 Permission Contract", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
       const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      await cytusPool.connect(investor).buy(amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
+      await tbtPool.connect(investor).buy(amountToBuy);
     });
 
     it("Should not be able to buy when pause", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
       const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      await cytusPool.connect(admin).pause();
-      await expect(cytusPool.connect(investor).buy(amountToBuy)).to.be.reverted;
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
+      await tbtPool.connect(admin).pause();
+      await expect(tbtPool.connect(investor).buy(amountToBuy)).to.be.reverted;
     });
 
   });
@@ -181,47 +181,47 @@ describe("CytusPool V2 Permission Contract", async () => {
   describe("Sell", async () => {
     beforeEach(async () => {
       const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      await cytusPool.connect(investor).buy(amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
+      await tbtPool.connect(investor).buy(amountToBuy);
     });
 
     it("Should be able to sell", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      await cytusPool.connect(investor).sell(amountToSell);
+      const amountToSell = await tbtPool.connect(investor).cTokenBalances(investor.address);
+      await tbtPool.connect(investor).sell(amountToSell);
     });
 
     it("Should not be able to sell when pause", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      await cytusPool.connect(admin).pause();
-      await expect(cytusPool.connect(investor).sell(amountToSell)).to.be.reverted;
+      const amountToSell = await tbtPool.connect(investor).cTokenBalances(investor.address);
+      await tbtPool.connect(admin).pause();
+      await expect(tbtPool.connect(investor).sell(amountToSell)).to.be.reverted;
     });
 
     it("Should not be able to sell more than balance", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const amountToSell = (await cytusPool.connect(investor).cTokenBalances(investor.address)).add(1);
-      await expect(cytusPool.connect(investor).sell(amountToSell)).to.be.revertedWith("100");
+      const amountToSell = (await tbtPool.connect(investor).cTokenBalances(investor.address)).add(1);
+      await expect(tbtPool.connect(investor).sell(amountToSell)).to.be.revertedWith("100");
     });
 
 
     it("Should not be able to sell all if left capital will be below lower bound", async () => {
-      await cytusPool.connect(admin).setCapitalLowerBound(1);
+      await tbtPool.connect(admin).setCapitalLowerBound(1);
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      await expect(cytusPool.connect(investor).sell(amountToSell)).to.be.revertedWith("102");
+      const amountToSell = await tbtPool.connect(investor).cTokenBalances(investor.address);
+      await expect(tbtPool.connect(investor).sell(amountToSell)).to.be.revertedWith("102");
     });
 
     it("Should be able to sell all if left capital will be equal or more than lower bound", async () => {
-      await cytusPool.connect(admin).setCapitalLowerBound(0);
+      await tbtPool.connect(admin).setCapitalLowerBound(0);
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      await cytusPool.connect(investor).sell(amountToSell);
+      const amountToSell = await tbtPool.connect(investor).cTokenBalances(investor.address);
+      await tbtPool.connect(investor).sell(amountToSell);
     });
 
 
@@ -229,20 +229,20 @@ describe("CytusPool V2 Permission Contract", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
       // Reward rate is zero, only one user, selling a half means taking half of the underlying.
-      const amountToSell = (await cytusPool.connect(investor).cTokenBalances(investor.address)).div(2);
-      const totalUnderlying = await cytusPool.totalUnderlying();
-      await cytusPool.connect(admin).setCapitalLowerBound(totalUnderlying.div(2).add(1));
-      await expect(cytusPool.connect(investor).sell(amountToSell)).to.be.revertedWith("102");
+      const amountToSell = (await tbtPool.connect(investor).cTokenBalances(investor.address)).div(2);
+      const totalUnderlying = await tbtPool.totalUnderlying();
+      await tbtPool.connect(admin).setCapitalLowerBound(totalUnderlying.div(2).add(1));
+      await expect(tbtPool.connect(investor).sell(amountToSell)).to.be.revertedWith("102");
     });
 
     it("Should be able to sell a half if left capital will be equal or more than lower bound", async () => {
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
       // Reward rate is zero, only one user, selling a half means taking half of the underlying.
-      const amountToSell = (await cytusPool.connect(investor).cTokenBalances(investor.address)).div(2);
-      const totalUnderlying = await cytusPool.totalUnderlying();
-      await cytusPool.connect(admin).setCapitalLowerBound(totalUnderlying.div(2));
-      await cytusPool.connect(investor).sell(amountToSell);
+      const amountToSell = (await tbtPool.connect(investor).cTokenBalances(investor.address)).div(2);
+      const totalUnderlying = await tbtPool.totalUnderlying();
+      await tbtPool.connect(admin).setCapitalLowerBound(totalUnderlying.div(2));
+      await tbtPool.connect(investor).sell(amountToSell);
     });
   });
 
@@ -252,18 +252,18 @@ describe("CytusPool V2 Permission Contract", async () => {
       const stakedTime = ONE_YEAR;
       const targetAPR = ethers.utils.parseUnits("8", 6); // 8%;
       const amountToBuy = ethers.utils.parseUnits("1000000", 6);
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
       await buy(investor, amountToBuy);
 
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
-      await cytusPool.connect(admin).setTargetAPR(targetAPR);
+      await tbtPool.connect(admin).setTargetAPR(targetAPR);
 
       now = now + stakedTime;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
+      const amountToSell = await tbtPool.connect(investor).cTokenBalances(investor.address);
       await sell(investor, amountToSell);
-      const pendingWithdrawal = await cytusPool.connect(investor).getPendingWithdrawal(investor.address);
+      const pendingWithdrawal = await tbtPool.connect(investor).getPendingWithdrawal(investor.address);
 
       const expected = amountToBuy.mul(108).div(100);
       // with 0.01% tolorence;
@@ -274,24 +274,24 @@ describe("CytusPool V2 Permission Contract", async () => {
       const stakedTime = ONE_YEAR;
       const targetAPR = ethers.utils.parseUnits("8", 6); // 8%;
       const amountToBuy = ethers.utils.parseUnits("1000000", 6);
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
       await buy(investor, amountToBuy);
-      await usdcToken.connect(investor2).approve(cytusPool.address, amountToBuy);
+      await usdcToken.connect(investor2).approve(tbtPool.address, amountToBuy);
       await buy(investor2, amountToBuy);
 
       now = now + ONE_DAY;
       await mineBlockWithTimestamp(ethers.provider, now);
-      await cytusPool.connect(admin).setTargetAPR(targetAPR);
+      await tbtPool.connect(admin).setTargetAPR(targetAPR);
 
       now = now + stakedTime;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
+      const amountToSell = await tbtPool.connect(investor).cTokenBalances(investor.address);
       await sell(investor, amountToSell);
-      const amountToSell2 = await cytusPool.connect(investor2).cTokenBalances(investor2.address);
+      const amountToSell2 = await tbtPool.connect(investor2).cTokenBalances(investor2.address);
       await sell(investor2, amountToSell2);
       
-      const pendingWithdrawal = await cytusPool.getPendingWithdrawal(investor.address);
-      const pendingWithdrawal2 = await cytusPool.getPendingWithdrawal(investor2.address);
+      const pendingWithdrawal = await tbtPool.getPendingWithdrawal(investor.address);
+      const pendingWithdrawal2 = await tbtPool.getPendingWithdrawal(investor2.address);
       expect(pendingWithdrawal).to.be.within(pendingWithdrawal2.mul(9999).div(10000), pendingWithdrawal2.mul(10001).div(10000));
 
       const expectedWithdrawal = amountToBuy.mul(108).div(100);
@@ -302,121 +302,121 @@ describe("CytusPool V2 Permission Contract", async () => {
 
   describe("RBAC", async () => {
     it("Should not be able to change pool settings without POOL_MANAGER_ROLE", async () => {
-      await expect(cytusPool.connect(poolManager).setTargetAPR(1000000)).to.be.reverted;
-      await expect(cytusPool.connect(poolManager).setMintFeeRate(1)).to.be.reverted;
-      await expect(cytusPool.connect(poolManager).setWithdrawFeeRate(1)).to.be.reverted;
-      await expect(cytusPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))).to.be.reverted;
-      await expect(cytusPool.connect(poolManager).setVault(vault.address)).to.be.reverted;
-      await expect(cytusPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted;
-      await expect(cytusPool.connect(poolManager).setFeeCollection(fee_collection.address)).to.be.reverted;
-      await expect(cytusPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setTargetAPR(1000000)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setMintFeeRate(1)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setWithdrawFeeRate(1)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setVault(vault.address)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setFeeCollection(fee_collection.address)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted;
     })
 
     it("Should be able to change pool settings with POOL_MANAGER_ROLE", async () => {
-      const POOL_MANAGER_ROLE = await cytusPool.POOL_MANAGER_ROLE();
-      await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
-      await cytusPool.connect(poolManager).setTargetAPR(1000000);
-      await cytusPool.connect(poolManager).setMintFeeRate(1);
-      await cytusPool.connect(poolManager).setWithdrawFeeRate(1);
-      await cytusPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))
-      await cytusPool.connect(poolManager).setVault(vault.address);
-      await cytusPool.connect(poolManager).setTreasury(treasury.address);
-      await cytusPool.connect(poolManager).setFeeCollection(fee_collection.address);
-      await cytusPool.connect(poolManager).setProcessPeriod(100);
+      const POOL_MANAGER_ROLE = await tbtPool.POOL_MANAGER_ROLE();
+      await tbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
+      await tbtPool.connect(poolManager).setTargetAPR(1000000);
+      await tbtPool.connect(poolManager).setMintFeeRate(1);
+      await tbtPool.connect(poolManager).setWithdrawFeeRate(1);
+      await tbtPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))
+      await tbtPool.connect(poolManager).setVault(vault.address);
+      await tbtPool.connect(poolManager).setTreasury(treasury.address);
+      await tbtPool.connect(poolManager).setFeeCollection(fee_collection.address);
+      await tbtPool.connect(poolManager).setProcessPeriod(100);
     })
 
     it("Should not be able to change pause settings without ADMIN_ROLE", async () => {
-      await expect(cytusPool.connect(poolManager).pause()).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).pause()).to.be.reverted;
     })
 
     it("Should be able to change pause settings with ADMIN_ROLE", async () => {
-      await cytusPool.connect(admin).pause();
-      await cytusPool.connect(admin).unpause();
+      await tbtPool.connect(admin).pause();
+      await tbtPool.connect(admin).unpause();
     })
   })
 
   describe("Withdrawal", async() => {
     beforeEach(async () => {
-      const POOL_MANAGER_ROLE = await cytusPool.POOL_MANAGER_ROLE();
-      await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
-      await cytusPool.connect(poolManager).setProcessPeriod(ONE_DAY);
+      const POOL_MANAGER_ROLE = await tbtPool.POOL_MANAGER_ROLE();
+      await tbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
+      await tbtPool.connect(poolManager).setProcessPeriod(ONE_DAY);
       const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      await cytusPool.connect(investor).buy(amountToBuy);
-      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      await cytusPool.connect(investor).sell(amountToSell);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
+      await tbtPool.connect(investor).buy(amountToBuy);
+      const amountToSell = await tbtPool.connect(investor).cTokenBalances(investor.address);
+      await tbtPool.connect(investor).sell(amountToSell);
     });
 
     it("Should be able to withdrawal", async () => {
       now = now + ONE_WEEK;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const orderId = await cytusPool.withdrawalIndex();
-      await cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId);
+      const orderId = await tbtPool.withdrawalIndex();
+      await tbtPool.connect(investor).withdrawUnderlyingTokenById(orderId);
     })
 
     it("Should be not able to withdrawal with other account", async () => {
       now = now + ONE_WEEK;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const orderId = await cytusPool.withdrawalIndex();
-      await expect(cytusPool.connect(investor2).withdrawUnderlyingTokenById(orderId)).to.be.revertedWith("105");
+      const orderId = await tbtPool.withdrawalIndex();
+      await expect(tbtPool.connect(investor2).withdrawUnderlyingTokenById(orderId)).to.be.revertedWith("105");
     })
 
     it("Should be not able to withdrawal when order is done", async () => {
       now = now + ONE_WEEK;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const orderId = await cytusPool.withdrawalIndex();
-      await cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId);
-      await expect(cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId)).to.be.revertedWith("106");
+      const orderId = await tbtPool.withdrawalIndex();
+      await tbtPool.connect(investor).withdrawUnderlyingTokenById(orderId);
+      await expect(tbtPool.connect(investor).withdrawUnderlyingTokenById(orderId)).to.be.revertedWith("106");
     })
 
-    it("Should be not able to withdrawal when it's not yet processed", async () => {
+    it("Should be not able to withdrawal when it's not yet been processed", async () => {
       now = now + ONE_HOUR;
       await mineBlockWithTimestamp(ethers.provider, now);
-      const orderId = await cytusPool.withdrawalIndex();
-      await expect(cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId)).to.be.revertedWith("108");
+      const orderId = await tbtPool.withdrawalIndex();
+      await expect(tbtPool.connect(investor).withdrawUnderlyingTokenById(orderId)).to.be.revertedWith("108");
     })
   })
 
   describe("FEE", async() => {
     beforeEach(async ()=> {
-      const POOL_MANAGER_ROLE = await cytusPool.POOL_MANAGER_ROLE();
-      await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
-      await cytusPool.connect(poolManager).setProcessPeriod(0);
+      const POOL_MANAGER_ROLE = await tbtPool.POOL_MANAGER_ROLE();
+      await tbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
+      await tbtPool.connect(poolManager).setProcessPeriod(0);
       // set 1% fee
-      await cytusPool.connect(poolManager).setMintFeeRate(1000000);
-      await cytusPool.connect(poolManager).setWithdrawFeeRate(1000000);
+      await tbtPool.connect(poolManager).setMintFeeRate(1000000);
+      await tbtPool.connect(poolManager).setWithdrawFeeRate(1000000);
     })
 
     it("Should not be able to change fee more then 1%", async () => {
-      await expect(cytusPool.connect(poolManager).setMintFeeRate(10000000)).to.be.reverted;
-      await expect(cytusPool.connect(poolManager).setWithdrawFeeRate(10000000)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setMintFeeRate(10000000)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setWithdrawFeeRate(10000000)).to.be.reverted;
     })
 
     it("Should be able to buy with fee", async () => {
       const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      await cytusPool.connect(investor).buy(amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
+      await tbtPool.connect(investor).buy(amountToBuy);
       // 1% fee -> 99 cToken
-      expect(await cytusPool.balanceOf(investor.address)).to.equal(ethers.utils.parseUnits("99", 18));
+      expect(await tbtPool.balanceOf(investor.address)).to.equal(ethers.utils.parseUnits("99", 18));
       // collect fee 
       expect(await usdcToken.balanceOf(fee_collection.address)).to.equal(ethers.utils.parseUnits("1", 6));
     })
 
     it("Should be able to sell with fee", async () => {
       const amountToBuy = ethers.utils.parseUnits("100", 6); // 100 USDC
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
-      await cytusPool.connect(investor).buy(amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
+      await tbtPool.connect(investor).buy(amountToBuy);
 
       const beforeFeeCollectBalance = await usdcToken.balanceOf(fee_collection.address);
       const beforeInvestorBalance = await usdcToken.balanceOf(investor.address);
 
-      const amountToSell = await cytusPool.connect(investor).cTokenBalances(investor.address);
-      await cytusPool.connect(investor).sell(amountToSell);
+      const amountToSell = await tbtPool.connect(investor).cTokenBalances(investor.address);
+      await tbtPool.connect(investor).sell(amountToSell);
 
-      const orderId = await cytusPool.withdrawalIndex();
+      const orderId = await tbtPool.withdrawalIndex();
 
-      const pendingWithdrawal = (await cytusPool.connect(investor).withdrawalDetails(orderId)).underlyingAmount;
-      await cytusPool.connect(investor).withdrawUnderlyingTokenById(orderId);
+      const pendingWithdrawal = (await tbtPool.connect(investor).withdrawalDetails(orderId)).underlyingAmount;
+      await tbtPool.connect(investor).withdrawUnderlyingTokenById(orderId);
       // equal 99 * 0.99
       const withdrawUnderlyingAmount = pendingWithdrawal.mul(99000000).div(100000000);
       expect(await usdcToken.balanceOf(investor.address)).to.equal(beforeInvestorBalance.add(withdrawUnderlyingAmount));
@@ -429,13 +429,13 @@ describe("CytusPool V2 Permission Contract", async () => {
 
   describe("APR", async() => {
     beforeEach(async ()=> {
-      const POOL_MANAGER_ROLE = await cytusPool.POOL_MANAGER_ROLE();
-      await cytusPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
+      const POOL_MANAGER_ROLE = await tbtPool.POOL_MANAGER_ROLE();
+      await tbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
     })
 
     it("Should not be able to change apr more then 10%", async () =>{
-      await cytusPool.connect(poolManager).setTargetAPR(10000000);
-      await expect(cytusPool.connect(poolManager).setTargetAPR(100000000)).to.be.reverted;
+      await tbtPool.connect(poolManager).setTargetAPR(10000000);
+      await expect(tbtPool.connect(poolManager).setTargetAPR(100000000)).to.be.reverted;
     })
   })
 
@@ -443,63 +443,63 @@ describe("CytusPool V2 Permission Contract", async () => {
     
     it("Should be able to approve and see allowence and transferFrom", async () => {
       const amountToBuy = ethers.utils.parseUnits("1000000", 6);
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
       await buy(investor, amountToBuy);
 
-      await cytusPool.connect(investor).approve(investor2.address, ethers.utils.parseUnits("1000", 18));
+      await tbtPool.connect(investor).approve(investor2.address, ethers.utils.parseUnits("1000", 18));
 
-      await expect(await cytusPool.allowance(investor.address, investor2.address)).to.equal(ethers.utils.parseUnits("1000", 18));
-      await cytusPool.connect(investor2).transferFrom(investor.address, investor3.address, ethers.utils.parseUnits("100", 18));
+      await expect(await tbtPool.allowance(investor.address, investor2.address)).to.equal(ethers.utils.parseUnits("1000", 18));
+      await tbtPool.connect(investor2).transferFrom(investor.address, investor3.address, ethers.utils.parseUnits("100", 18));
 
-      await expect(await cytusPool.balanceOf(investor3.address)).to.equal(ethers.utils.parseUnits("100", 18));
-      await expect(await cytusPool.balanceOf(investor.address)).to.equal(ethers.utils.parseUnits("999900", 18));
+      await expect(await tbtPool.balanceOf(investor3.address)).to.equal(ethers.utils.parseUnits("100", 18));
+      await expect(await tbtPool.balanceOf(investor.address)).to.equal(ethers.utils.parseUnits("999900", 18));
     });
 
     it("Should be able to totalSupply", async () => {
       // + 1000000 to 1000000
       const amountToBuy = ethers.utils.parseUnits("1000000", 6);
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
       await buy(investor, amountToBuy);
-      await expect(await cytusPool.totalSupply()).to.equal(ethers.utils.parseUnits("1000000", 18));
+      await expect(await tbtPool.totalSupply()).to.equal(ethers.utils.parseUnits("1000000", 18));
 
       // - 500000 to 50000
       await sell(investor, ethers.utils.parseUnits("500000", 18));
-      await expect(await cytusPool.totalSupply()).to.equal(ethers.utils.parseUnits("500000", 18));
+      await expect(await tbtPool.totalSupply()).to.equal(ethers.utils.parseUnits("500000", 18));
 
       // + 1000000 to 1500000
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
       await buy(investor, amountToBuy);
-      await expect(await cytusPool.totalSupply()).to.equal(ethers.utils.parseUnits("1500000", 18));
+      await expect(await tbtPool.totalSupply()).to.equal(ethers.utils.parseUnits("1500000", 18));
     });
 
     it("Should be emit event when buy and sell", async () => {
       // + 100000 to 1000000
       const amountToBuy = ethers.utils.parseUnits("1000000", 6);
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
 
-      await expect(cytusPool.connect(investor).buy(amountToBuy)).to.emit(cytusPool, 'Transfer').withArgs(ethers.constants.AddressZero, investor.address, ethers.utils.parseUnits("1000000", 18));
+      await expect(tbtPool.connect(investor).buy(amountToBuy)).to.emit(tbtPool, 'Transfer').withArgs(ethers.constants.AddressZero, investor.address, ethers.utils.parseUnits("1000000", 18));
 
       // - 500000 to 50000
       const amountToSell = ethers.utils.parseUnits("500000", 18);
-      await expect(cytusPool.connect(investor).sell(amountToSell)).to.emit(cytusPool, 'Transfer').withArgs(investor.address, ethers.constants.AddressZero, ethers.utils.parseUnits("500000", 18));
+      await expect(tbtPool.connect(investor).sell(amountToSell)).to.emit(tbtPool, 'Transfer').withArgs(investor.address, ethers.constants.AddressZero, ethers.utils.parseUnits("500000", 18));
     })
   });
 
   describe("Upgradeable", async () => {
     it ("Should have the same cTokenBalances after upgrade", async () => {
       const amountToBuy = ethers.utils.parseUnits("1000000", 6);
-      await usdcToken.connect(investor).approve(cytusPool.address, amountToBuy);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
       await buy(investor, amountToBuy);
-      const cTokenBalanceOld = await cytusPool.cTokenBalances(investor.address);
+      const cTokenBalanceOld = await tbtPool.cTokenBalances(investor.address);
 
-      CytusPoolUpgraded = await ethers.getContractFactory("CytusPoolV2PermissionUpgradedMock");
-      let cytusPoolUpgraded = await upgrades.upgradeProxy(cytusPool.address, CytusPoolUpgraded );
-      await cytusPoolUpgraded.deployed();
+      TBTPoolUpgraded = await ethers.getContractFactory("TBTPoolV2PermissionUpgradedMock");
+      let tbtPoolUpgraded = await upgrades.upgradeProxy(tbtPool.address, TBTPoolUpgraded );
+      await tbtPoolUpgraded.deployed();
 
       // Make sure the contract is upgraded by calling a fake new function.
-      await expect(await cytusPoolUpgraded.mockNewFunction()).to.equal("Hello World!");
+      await expect(await tbtPoolUpgraded.mockNewFunction()).to.equal("Hello World!");
       
-      await expect(await cytusPoolUpgraded.cTokenBalances(investor.address)).to.equal(cTokenBalanceOld);
+      await expect(await tbtPoolUpgraded.cTokenBalances(investor.address)).to.equal(cTokenBalanceOld);
     })
   })
 });

@@ -13,7 +13,7 @@ import "../roles/MinterRole.sol";
 import "hardhat/console.sol";
 
 
-contract CytusPoolV2PermissionUpgradedMock is
+contract TBTPoolV2PermissionUpgradedMock is
     DomainAware,
     AccessControlUpgradeable,
     ERC20Upgradeable,
@@ -85,7 +85,7 @@ contract CytusPoolV2PermissionUpgradedMock is
 
     // Treasury: When user buy cToken, treasury will receive USDC.
     // Vault: When user redeem cToken, vault will pay USDC.
-    // So should transfer money from treasury to vault, and let vault approve 10**70 to CytusPoolV2 Contract.
+    // So should transfer money from treasury to vault, and let vault approve 10**70 to TBTPoolV2 Contract.
     function initialize(
         string memory name,
         string memory symbol,

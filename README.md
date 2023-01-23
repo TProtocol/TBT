@@ -1,4 +1,4 @@
-# Cytus Pool V2
+# TBT Pool V2
 
 ## Error Code
 

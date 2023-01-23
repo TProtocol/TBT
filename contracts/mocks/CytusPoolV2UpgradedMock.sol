@@ -38,7 +38,7 @@ abstract contract Extension is IExtensionTypes {
         virtual;
 }
 
-contract CytusPoolV2UpgradedMock is
+contract TBTPoolV2UpgradedMock is
     ERC1820Client,
     ERC1820Implementer,
     IExtensionTypes,
@@ -113,7 +113,7 @@ contract CytusPoolV2UpgradedMock is
 
     // Treasury: When user buy cToken, treasury will receive USDC.
     // Vault: When user redeem cToken, vault will pay USDC.
-    // So should transfer money from treasury to vault, and let vault approve 10**70 to CytusPoolV2 Contract.
+    // So should transfer money from treasury to vault, and let vault approve 10**70 to TBTPoolV2 Contract.
     function initialize(
         string memory name,
         string memory symbol,
@@ -128,7 +128,7 @@ contract CytusPoolV2UpgradedMock is
     ) public initializer {
         require(
             extension != address(0),
-            "CytusPoolV2: extension is zero address"
+            "TBTPoolV2: extension is zero address"
         );
 
         AccessControlUpgradeable.__AccessControl_init();
