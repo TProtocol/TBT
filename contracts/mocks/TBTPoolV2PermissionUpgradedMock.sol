@@ -8,7 +8,6 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 import "../tools/DomainAware.sol";
-import "../roles/MinterRole.sol";
 
 import "hardhat/console.sol";
 
