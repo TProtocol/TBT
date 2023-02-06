@@ -1,71 +1,57 @@
-require("dotenv").config();
+require("@nomiclabs/hardhat-waffle")
+require("@nomiclabs/hardhat-etherscan")
+require("@nomicfoundation/hardhat-chai-matchers")
+require("hardhat-deploy")
+require("solidity-coverage")
+require("hardhat-gas-reporter")
+require("dotenv").config()
 
-// require("@nomiclabs/hardhat-etherscan");
-require("@nomiclabs/hardhat-ethers");
-require("hardhat-gas-reporter");
-require("solidity-coverage");
-// require("@nomiclabs/hardhat-vyper");
-// require("@nomiclabs/hardhat-truffle5");
-require("hardhat-erc1820");
-require("@nomicfoundation/hardhat-chai-matchers");
-require('@openzeppelin/hardhat-upgrades');
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
+const DEPLOYER_KEY = process.env.DEPLOYER_KEY
+const TREASURY_KEY = process.env.TREASURY_KEY
+const VAULT_KEY = process.env.VAULT_KEY
+const FEE_COLLECTOR_KEY = process.env.FEE_COLLECTOR_KEY
 
-const default_mnemonic = process.env.MNEMONIC || "test"
-
-// This is a sample Hardhat task. To learn how to create your own go to
-// https://hardhat.org/guides/create-task.html
-task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
-    const accounts = await hre.ethers.getSigners();
-
-    for (const account of accounts) {
-        console.log(account.address);
-    }
-});
-
-// Get accounts by mnemonic
-function getAccounts(mnemonic, count) {
-    return {
-        count,
-        mnemonic,
-        path: "m/44'/60'/0'/0",
-    }
-}
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
-
-/**
- * @type import('hardhat/config').HardhatUserConfig
- */
 module.exports = {
-    solidity: {
-        version: "0.8.15",
-        settings: {
-            optimizer: {
-                enabled: true,
-                runs: 1000,
-            },
-        },
-    },
-    networks: {
-        rinkeby: {
-            url: "https://eth-rinkeby.alchemyapi.io/v2/TODO",
-            accounts: getAccounts(default_mnemonic, 10),
-        },
-        mainnet: {
-            url: "https://eth-mainnet.alchemyapi.io/v2/TODO",
-            accounts: getAccounts(default_mnemonic, 10),
-        },
-        goerli: {
-            url: "https://eth-goerli.g.alchemy.com/v2/TODO",
-            accounts: getAccounts(default_mnemonic, 10),
-        }
-    },
-    gasReporter: {
-        enabled: process.env.REPORT_GAS !== undefined,
-        coinmarketcap: "TODO",
-        currency: "USD",
-    },
-    etherscan: {
-        apiKey: 'TODO',
-    },
-};
+	solidity: {
+		version: "0.8.7",
+		settings: {
+			optimizer: {
+				enabled: true,
+				runs: 1000,
+			},
+		},
+	},
+	networks: {
+		hardhat: { chainId: 31337 },
+		bscTestnet: {
+			url: "https://data-seed-prebsc-2-s3.binance.org:8545",
+			accounts: [DEPLOYER_KEY, TREASURY_KEY, VAULT_KEY, FEE_COLLECTOR_KEY],
+			chainId: 97,
+		},
+	},
+	gasReporter: {
+		enabled: process.env.REPORT_GAS !== undefined,
+		coinmarketcap: "TODO",
+		currency: "USD",
+	},
+	etherscan: {
+		apiKey: {
+			bscTestnet: ETHERSCAN_API_KEY,
+		},
+	},
+	namedAccounts: {
+		deployer: {
+			default: 0,
+		},
+		treasury: {
+			default: 1,
+		},
+		vault: {
+			default: 2,
+		},
+		fee_collector: {
+			default: 3,
+		},
+	},
+}

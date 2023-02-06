@@ -2,6 +2,7 @@ types/
 .idea/
 .env
 .DS_Store
+yarn.lock
 
 # Dependency directory
 node_modules
@@ -20,3 +21,4 @@ yarn-error.log
 .coverage_contracts
 cache/
 .openzeppelin/
+deployments/

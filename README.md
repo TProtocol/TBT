@@ -11,3 +11,19 @@
 - 106: (withdrawUnderlyingTokenByID) the withdrawal order is done.
 - 107: (withdrawUnderlyingTokenByID) the vault does not have enough underlying token to withdraw.
 - 108: (withdrawUnderlyingTokenByID) the withdrawal order is not ready for withdral.
+
+## Development Deoploy & Verify
+For BSC Testnet
+``` bash
+yarn hardhat deoploy --network bscTestnet
+```
+
+### Initalize the contract
+``` bash
+yarn hardhat run scripts/TBT-Initalize.js --network bscTestnet
+```
+
+## BSC Testnet
+### Contract Address
+- TBTPoolV2Permission: https://testnet.bscscan.com/address/0x41EED588F071dABAF0A795cE64E647fa0d85140e
+- USDC: 0xbcBBB78D1B17A90499F2D4F2CF41f7f71Eb145Ac
