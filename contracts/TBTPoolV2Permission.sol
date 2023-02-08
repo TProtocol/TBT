@@ -118,7 +118,7 @@ contract TBTPoolV2Permission is
         uint256 _capitalLowerBound,
         address _treasury,
         address _vault,
-        address _fee_colletion
+        address _fee_collection
     ) public initializer {
 
         AccessControlUpgradeable.__AccessControl_init();
@@ -139,7 +139,7 @@ contract TBTPoolV2Permission is
         capitalLowerBound = _capitalLowerBound;
         vault = _vault;
         treasury = _treasury;
-        fee_collection = _fee_colletion;
+        fee_collection = _fee_collection;
 
         // const, reduce risk for now.
         // It's 10%.
