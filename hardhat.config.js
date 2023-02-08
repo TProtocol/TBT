@@ -4,6 +4,7 @@ require("@nomicfoundation/hardhat-chai-matchers")
 require("hardhat-deploy")
 require("solidity-coverage")
 require("hardhat-gas-reporter")
+require('@openzeppelin/hardhat-upgrades')
 require("dotenv").config()
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
