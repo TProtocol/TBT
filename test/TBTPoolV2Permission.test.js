@@ -297,6 +297,59 @@ describe("TBTPool V2 Permission Contract", async () => {
       const expectedWithdrawal = amountToBuy.mul(108).div(100);
       expect(pendingWithdrawal).to.be.within(expectedWithdrawal.mul(9999).div(10000), expectedWithdrawal.mul(10001).div(10000));
     })
+
+    it("Should be equal for getCTokenByUnderlying and buy cToken", async () => {
+      const timepass = ONE_DAY;
+      const targetAPR = ethers.utils.parseUnits("8", 6); // 8%;
+      const amountToBuy = ethers.utils.parseUnits("100000", 6);
+      await tbtPool.connect(admin).setTargetAPR(targetAPR);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy * 2);
+      await buy(investor, amountToBuy);
+      now = now + timepass;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      await tbtPool.connect(admin).setTargetAPR(0);
+      const beforeCTokenBalance = await tbtPool.connect(investor).balanceOf(investor.address);
+      const getCTokenAmount = await tbtPool.connect(investor).getCTokenByUnderlying(amountToBuy);
+      await buy(investor, amountToBuy);
+      const buyCTokenAmount = (await tbtPool.connect(investor).balanceOf(investor.address)).sub(beforeCTokenBalance);
+      await expect(getCTokenAmount.toString()).to.be.eq(buyCTokenAmount.toString());
+    })
+
+    it("Should be equal for getUnderlyingByCToken and sell cToken", async () => {
+      const timepass = ONE_DAY;
+      const targetAPR = ethers.utils.parseUnits("8", 6); // 8%;
+      const amountToBuy = ethers.utils.parseUnits("100000", 6);
+      await tbtPool.connect(admin).setTargetAPR(targetAPR);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
+      await buy(investor, amountToBuy);
+      now = now + timepass;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      await tbtPool.connect(admin).setTargetAPR(0);
+
+      const amountToSell = (await tbtPool.connect(investor).cTokenBalances(investor.address)).div(2);
+      const getUnderlyingByCToken = await tbtPool.connect(investor).getUnderlyingByCToken(amountToSell);
+      await sell(investor, amountToSell);
+
+      const orderId = await tbtPool.withdrawalIndex();
+
+      const pendingWithdrawal = (await tbtPool.connect(investor).withdrawalDetails(orderId)).underlyingAmount;
+      await expect(getUnderlyingByCToken.toString()).to.be.eq(pendingWithdrawal.toString());
+    })
+
+    it("Should be token value always > 1", async () => {
+      const timepass = ONE_YEAR;
+      const targetAPR = ethers.utils.parseUnits("8", 6); // 8%;
+      const amountToBuy = ethers.utils.parseUnits("100000", 6);
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
+      await buy(investor, amountToBuy);
+      
+      await tbtPool.connect(admin).setTargetAPR(targetAPR);
+      now = (await ethers.provider.getBlock("latest")).timestamp + timepass;
+      await mineBlockWithTimestamp(ethers.provider, now);
+
+      const pricePerToken = await tbtPool.pricePerToken();
+      expect(pricePerToken).to.be.gt(BigNumber.from(10).pow(6));
+    })
   });
 
 

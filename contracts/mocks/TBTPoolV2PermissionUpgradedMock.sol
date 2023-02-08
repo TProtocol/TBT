@@ -7,6 +7,8 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
 import "../tools/DomainAware.sol";
 
 import "hardhat/console.sol";
@@ -30,7 +32,7 @@ contract TBTPoolV2PermissionUpgradedMock is
     uint256 public constant FEE_COEFFICIENT = 10 ** 8;
 
     // This token's decimals is 18, USDC's decimals is 6, so the INITIAL_CTOKEN_TO_UNDERLYING is 10**(18-6)
-    uint256 public constant INITIAL_CTOKEN_TO_UNDERLYING = 10**12;
+    uint256 public INITIAL_CTOKEN_TO_UNDERLYING;
 
     mapping(address => uint256) public cTokenBalances;
 
@@ -118,7 +120,7 @@ contract TBTPoolV2PermissionUpgradedMock is
         uint256 _capitalLowerBound,
         address _treasury,
         address _vault,
-        address _fee_colletion
+        address _fee_collection
     ) public initializer {
 
         AccessControlUpgradeable.__AccessControl_init();
@@ -134,12 +136,16 @@ contract TBTPoolV2PermissionUpgradedMock is
         _setupRole(POOL_MANAGER_ROLE, admin);
 
         underlyingToken = _underlyingToken;
+
+        uint256 underlyingDecimals = ERC20(address(underlyingToken)).decimals();
+
+        INITIAL_CTOKEN_TO_UNDERLYING = 10**(uint256(decimals() - underlyingDecimals));
         
         lastCheckpoint = block.timestamp;
         capitalLowerBound = _capitalLowerBound;
         vault = _vault;
         treasury = _treasury;
-        fee_collection = _fee_colletion;
+        fee_collection = _fee_collection;
 
         // const, reduce risk for now.
         // It's 10%.
@@ -245,17 +251,41 @@ contract TBTPoolV2PermissionUpgradedMock is
     /*                                   Getters                                  */
     /* -------------------------------------------------------------------------- */
 
-    function getCTokenToUnderlying() external view returns (uint256) {
+    function getTotalUnderlying() public view returns (uint256) {
+        return 
+            totalUnderlying.add(
+                getRPS().mul(block.timestamp.sub(lastCheckpoint))
+            );
+    }
+
+    function getCTokenByUnderlying(uint256 _underlyingAmount) public view returns (uint256) {
         if (cTokenTotalSupply == 0) {
-            return cTokenTotalSupply;
+            return 0;
         } else {
             return
-                cTokenTotalSupply.div(
-                    totalUnderlying.add(
-                        getRPS().mul(block.timestamp.sub(lastCheckpoint))
-                    )
-                );
+                _underlyingAmount
+                .mul(cTokenTotalSupply)
+                .div(getTotalUnderlying());
         }
+    }
+
+    function getUnderlyingByCToken(uint256 _cTokenAmount) public view returns (uint256){
+        if (cTokenTotalSupply == 0){
+            return 0;
+        } else {
+            return 
+                _cTokenAmount
+                .mul(getTotalUnderlying())
+                .div(cTokenTotalSupply);
+        }
+    }
+
+    function getInitalCtokenToUnderlying() public view returns (uint256){
+        return INITIAL_CTOKEN_TO_UNDERLYING;
+    }
+
+    function pricePerToken() external view returns (uint256){
+        return getUnderlyingByCToken(1 ether);
     }
 
     function getRPS() public view returns (uint256) {
