@@ -63,9 +63,9 @@ contract rTBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgrade
     }
 
     /**
-     * @return the amount of shares that corresponds to `_amount` underlying token.
+     * @return the amount of shares that corresponds to `_amount` token.
      */
-    function getSharesByUnderlying(uint256 _amount) public view returns (uint256) {
+    function getSharesByAmount(uint256 _amount) public view returns (uint256) {
         uint256 totalShares = _getTotalShares();
         if (totalShares == 0) {
             return 0;
@@ -77,9 +77,9 @@ contract rTBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgrade
     }
 
     /**
-     * @return the amount of Underlying that corresponds to `_sharesAmount` token shares.
+     * @return the amount of token that corresponds to `_sharesAmount` token shares.
      */
-    function getUnderlyByShares(uint256 _sharesAmount) public view returns (uint256) {
+    function getAmountByShares(uint256 _sharesAmount) public view returns (uint256) {
         uint256 totalShares = _getTotalShares();
         if (totalShares == 0) {
             return 0;
@@ -109,10 +109,10 @@ contract rTBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgrade
      * @return the amount of tokens owned by the `_account`.
      *
      * @dev Balances are dynamic and equal the `_account`'s share in the amount of the
-     * total Underlying token in contract.
+     * total amount token in contract.
      */
     function balanceOf(address _account) public override view returns (uint256) {
-        return getUnderlyByShares(_sharesOf(_account));
+        return getAmountByShares(_sharesOf(_account));
     }
 
     /**
@@ -136,7 +136,7 @@ contract rTBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgrade
     }
 
     function _transfer(address _sender, address _recipient, uint256 _amount) internal override {
-        uint256 _sharesToTransfer = getSharesByUnderlying(_amount);
+        uint256 _sharesToTransfer = getSharesByAmount(_amount);
         _transferShares(_sender, _recipient, _sharesToTransfer);
         emit Transfer(_sender, _recipient, _amount);
     }
@@ -202,18 +202,18 @@ contract rTBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgrade
         TBT.safeTransferFrom(msg.sender, address(this), _tbtAmount);
         _mintShares(msg.sender, _tbtAmount);
 
-        emit Transfer(address(0), msg.sender, getUnderlyByShares(_tbtAmount));
+        emit Transfer(address(0), msg.sender, getAmountByShares(_tbtAmount));
     }
 
     // wrap rTBT -> TBT
-    function unwrap(uint256 _underlyingAmount) public {
+    function unwrap(uint256 _amount) public {
         // equal shares
-        uint256 tbtAmount =  getSharesByUnderlying(_underlyingAmount);
+        uint256 tbtAmount =  getSharesByAmount(_amount);
         require(tbtAmount > 0 , "can't wrap zero rTBT");
         _burnShares(msg.sender, tbtAmount);
         TBT.safeTransfer(msg.sender, tbtAmount);
 
-        emit Transfer(msg.sender, address(0), _underlyingAmount);
+        emit Transfer(msg.sender, address(0), _amount);
     }
 
     // wrap all rTBT -> TBT

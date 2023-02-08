@@ -142,11 +142,11 @@ describe("rTBT Contract", async () => {
     it("Should be able to unwrap", async () => {
       const sharesAmount = await rtbt.sharesOf(investor.address);
 
-      const unwrapUnderlying = ethers.utils.parseUnits("100", 18);
+      const unwrapAmount = ethers.utils.parseUnits("100", 18);
       
-      const getSharesByUnderlying = await rtbt.getSharesByUnderlying(unwrapUnderlying);
+      const getSharesByAmount = await rtbt.getSharesByAmount(unwrapAmount);
 
-      await rtbt.connect(investor).unwrap(unwrapUnderlying);
+      await rtbt.connect(investor).unwrap(unwrapAmount);
     });
 
     it("Should be able to unwrapAll", async () => {
@@ -215,6 +215,74 @@ describe("rTBT Contract", async () => {
 
     });
   });
+
+  describe("Transfer", async () => {
+    beforeEach(async () => {
+      await tbtPool.connect(investor).approve(rtbt.address, ethers.utils.parseUnits("100000000", 18));
+
+      const amountToBuy = ethers.utils.parseUnits("100000", 6); // 100 USDC
+      await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
+      await tbtPool.connect(investor).buy(amountToBuy);
+      const tbtBalance = await tbtPool.balanceOf(investor.address);
+      await rtbt.connect(investor).wrap(tbtBalance);
+
+    });
+
+    it("Should be able to transfer the balance", async() => {
+      const targetAPR = ethers.utils.parseUnits("8", 6); // 8%
+
+      await tbtPool.connect(admin).setTargetAPR(targetAPR);
+      now = (await ethers.provider.getBlock("latest")).timestamp + ONE_YEAR;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      await tbtPool.connect(admin).setTargetAPR(0);
+
+      const rTBTBalanceBefore = await rtbt.balanceOf(investor.address);
+      const rTBTSharesBefore = await rtbt.sharesOf(investor.address);
+      await rtbt.connect(investor).transfer(investor2.address, rTBTBalanceBefore);
+
+      const rTBTBalanceAfter = await rtbt.balanceOf(investor.address);
+      const rTBTSharesAfter = await rtbt.sharesOf(investor.address);
+      expect(rTBTBalanceAfter).to.be.equal(0);
+      expect(rTBTSharesAfter).to.be.equal(0);
+
+      const investor2Balance = await rtbt.balanceOf(investor2.address);
+      expect(investor2Balance).to.be.equal(rTBTBalanceBefore);
+
+      const investor2Shares = await rtbt.sharesOf(investor2.address);
+      expect(investor2Shares).to.be.equal(rTBTSharesBefore);
+    })
+
+    it("Should be able to transfer some shares", async() => {
+      const targetAPR = ethers.utils.parseUnits("8", 6); // 8%
+
+      await tbtPool.connect(admin).setTargetAPR(targetAPR);
+      now = (await ethers.provider.getBlock("latest")).timestamp + ONE_YEAR;
+      await mineBlockWithTimestamp(ethers.provider, now);
+      await tbtPool.connect(admin).setTargetAPR(0);
+
+      const rTBTBalanceBefore = await rtbt.balanceOf(investor.address);
+      const rTBTSharesBefore = await rtbt.sharesOf(investor.address);
+
+
+      const transferAmount = (await rtbt.balanceOf(investor.address)).div(2);
+      const transferSharesAmount = await rtbt.getSharesByAmount(transferAmount);
+      await rtbt.connect(investor).transfer(investor2.address, transferAmount);
+
+      const transferAmountAfter = await rtbt.balanceOf(investor.address);
+      const transferSharesAfter = await rtbt.sharesOf(investor.address);
+
+      const receiveShares = await rtbt.sharesOf(investor2.address);
+      const receiveAmountBalance = await rtbt.balanceOf(investor2.address);
+
+
+      expect(receiveShares).to.be.equal(transferSharesAmount);
+      expect(receiveAmountBalance).to.be.equal(transferAmount);
+
+      expect(rTBTSharesBefore).to.be.equal(receiveShares.add(transferSharesAfter));
+      expect(rTBTBalanceBefore).to.be.equal(receiveAmountBalance.add(transferAmountAfter));
+
+    })
+  })
 
   describe("Balance", async () => {
 
