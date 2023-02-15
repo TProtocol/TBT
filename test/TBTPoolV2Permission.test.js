@@ -118,7 +118,7 @@ describe("TBTPool V2 Permission Contract", async () => {
   }
 
   beforeEach(async () => {
-    [controller, treasury, vault, investor, investor2, investor3, deployer, admin, poolManager, fee_collection] = await ethers.getSigners();
+    [controller, treasury, vault, investor, investor2, investor3, deployer, admin, poolManager, fee_collection, protocol_fee_collection] = await ethers.getSigners();
     now = (await ethers.provider.getBlock("latest")).timestamp;
     const ERC20Token = await ethers.getContractFactory("ERC20Token");
     usdcToken = await ERC20Token.connect(deployer).deploy("USDC", "USDC", 6);
@@ -134,7 +134,8 @@ describe("TBTPool V2 Permission Contract", async () => {
       0,
       vault.address,
       treasury.address,
-      fee_collection.address
+      fee_collection.address,
+      protocol_fee_collection.address
     ]);
     await tbtPool.deployed();
     // tbtPool = await TBTPool.connect(deployer).deploy(
@@ -362,6 +363,7 @@ describe("TBTPool V2 Permission Contract", async () => {
       await expect(tbtPool.connect(poolManager).setVault(vault.address)).to.be.reverted;
       await expect(tbtPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted;
       await expect(tbtPool.connect(poolManager).setFeeCollection(fee_collection.address)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setProtocolFeeCollection(protocol_fee_collection.address)).to.be.reverted;
       await expect(tbtPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted;
     })
 
@@ -375,6 +377,7 @@ describe("TBTPool V2 Permission Contract", async () => {
       await tbtPool.connect(poolManager).setVault(vault.address);
       await tbtPool.connect(poolManager).setTreasury(treasury.address);
       await tbtPool.connect(poolManager).setFeeCollection(fee_collection.address);
+      await tbtPool.connect(poolManager).setProtocolFeeCollection(protocol_fee_collection.address);
       await tbtPool.connect(poolManager).setProcessPeriod(100);
     })
 
@@ -435,14 +438,19 @@ describe("TBTPool V2 Permission Contract", async () => {
       const POOL_MANAGER_ROLE = await tbtPool.POOL_MANAGER_ROLE();
       await tbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
       await tbtPool.connect(poolManager).setProcessPeriod(0);
-      // set 1% fee
-      await tbtPool.connect(poolManager).setMintFeeRate(1000000);
-      await tbtPool.connect(poolManager).setWithdrawFeeRate(1000000);
+      // set 0.5% fee
+      await tbtPool.connect(poolManager).setMintFeeRate(500000);
+      await tbtPool.connect(poolManager).setWithdrawFeeRate(500000);
+      // set 0.3% fee for protocol
+      await tbtPool.connect(poolManager).setMintProtocolFeeRate(300000);
+      await tbtPool.connect(poolManager).setWithdrawProtocolFeeRate(300000);
     })
 
     it("Should not be able to change fee more then 1%", async () => {
       await expect(tbtPool.connect(poolManager).setMintFeeRate(10000000)).to.be.reverted;
       await expect(tbtPool.connect(poolManager).setWithdrawFeeRate(10000000)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setMintProtocolFeeRate(10000000)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setWithdrawProtocolFeeRate(10000000)).to.be.reverted;
     })
 
     it("Should be able to buy with fee", async () => {
@@ -450,9 +458,21 @@ describe("TBTPool V2 Permission Contract", async () => {
       await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy);
       await tbtPool.connect(investor).buy(amountToBuy);
       // 1% fee -> 99 cToken
-      expect(await tbtPool.balanceOf(investor.address)).to.equal(ethers.utils.parseUnits("99", 18));
+
+      const FEE_COEFFICIENT = await tbtPool.FEE_COEFFICIENT();
+      const mintFeeRate = await tbtPool.mintFeeRate();
+      const mintProtocolFeeRate = await tbtPool.mintProtocolFeeRate();
+      
+      const totalFee = mintFeeRate.add(mintProtocolFeeRate);
+
+      const INITIAL_CTOKEN_TO_UNDERLYING = await tbtPool.INITIAL_CTOKEN_TO_UNDERLYING();
+
+
+      // underlying amount * INITIAL_CTOKEN_TO_UNDERLYING * ( 1 - fee )
+      expect(await tbtPool.balanceOf(investor.address)).to.equal(amountToBuy.mul(INITIAL_CTOKEN_TO_UNDERLYING).mul(FEE_COEFFICIENT.sub(totalFee)).div(FEE_COEFFICIENT));
       // collect fee 
-      expect(await usdcToken.balanceOf(fee_collection.address)).to.equal(ethers.utils.parseUnits("1", 6));
+      expect(await usdcToken.balanceOf(fee_collection.address)).to.equal(amountToBuy.mul(mintFeeRate).div(FEE_COEFFICIENT));
+      expect(await usdcToken.balanceOf(protocol_fee_collection.address)).to.equal(amountToBuy.mul(mintProtocolFeeRate).div(FEE_COEFFICIENT));
     })
 
     it("Should be able to sell with fee", async () => {
@@ -461,6 +481,7 @@ describe("TBTPool V2 Permission Contract", async () => {
       await tbtPool.connect(investor).buy(amountToBuy);
 
       const beforeFeeCollectBalance = await usdcToken.balanceOf(fee_collection.address);
+      const beforeProtocolFeeCollectBalance = await usdcToken.balanceOf(protocol_fee_collection.address);
       const beforeInvestorBalance = await usdcToken.balanceOf(investor.address);
 
       const amountToSell = await tbtPool.connect(investor).cTokenBalances(investor.address);
@@ -471,12 +492,19 @@ describe("TBTPool V2 Permission Contract", async () => {
       const pendingWithdrawal = (await tbtPool.connect(investor).withdrawalDetails(orderId)).underlyingAmount;
       await tbtPool.connect(investor).withdrawUnderlyingTokenById(orderId);
       // equal 99 * 0.99
-      const withdrawUnderlyingAmount = pendingWithdrawal.mul(99000000).div(100000000);
+
+      const FEE_COEFFICIENT = await tbtPool.FEE_COEFFICIENT();
+      const withdrawFeeRate = await tbtPool.withdrawFeeRate();
+      const withdrawProtocolFeeRate = await tbtPool.withdrawProtocolFeeRate();
+
+      const withdrawUnderlyingAmount = pendingWithdrawal.sub(pendingWithdrawal.mul(withdrawFeeRate.add(withdrawProtocolFeeRate)).div(FEE_COEFFICIENT));
       expect(await usdcToken.balanceOf(investor.address)).to.equal(beforeInvestorBalance.add(withdrawUnderlyingAmount));
 
       const afterFeeCollectBalance = await usdcToken.balanceOf(fee_collection.address); 
-      expect(afterFeeCollectBalance).to.equal(beforeFeeCollectBalance.add(pendingWithdrawal.sub(withdrawUnderlyingAmount)));
-
+      const afterProtocolFeeCollectBalance = await usdcToken.balanceOf(protocol_fee_collection.address); 
+      
+      expect(afterFeeCollectBalance).to.equal(beforeFeeCollectBalance.add(pendingWithdrawal.mul(withdrawFeeRate).div(FEE_COEFFICIENT)));
+      expect(afterProtocolFeeCollectBalance).to.equal(beforeProtocolFeeCollectBalance.add(pendingWithdrawal.mul(withdrawProtocolFeeRate).div(FEE_COEFFICIENT)));
     })
   })
 

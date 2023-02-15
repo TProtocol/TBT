@@ -47,18 +47,22 @@ contract TBTPoolV2PermissionUpgradedMock is
     address public treasury;
     // Fee Collection, used to receive fee when mint or redeem.
     address public fee_collection;
+    // Fee for protocol
+    address public protocol_fee_collection;
 
     // withdrawFeeRate: 0.1% => 100000 (10 ** 5)
     // withdrawFeeRate: 10% => 10000000 (10 ** 7)
     // withdrawFeeRate: 100% => 100000000 (10 ** 8)
     // It's used when call withdrawUnderlyingToken method.
     uint256 public withdrawFeeRate;
+    uint256 public withdrawProtocolFeeRate;
 
     // mintFeeRate: 0.1% => 100000 (10 ** 5)
     // mintFeeRate: 10% => 10000000 (10 ** 7)
     // mintFeeRate: 100% => 100000000 (10 ** 8)
     // It's used when call buy method.
     uint256 public mintFeeRate;
+    uint256 public mintProtocolFeeRate;
 
     // Pending withdrawals, value is the USDC amount, user can claim whenever the vault has enough USDC.
     mapping(address => uint256) public pendingWithdrawals;
@@ -75,7 +79,10 @@ contract TBTPoolV2PermissionUpgradedMock is
 
     // Max fee rates can't over then 1%
     uint256 public constant maxMintFeeRate = 10 ** 6;
+    uint256 public constant maxMintProtocolFeeRate = 10 ** 6;
+
     uint256 public constant maxWithdrawFeeRate = 10 ** 6;
+    uint256 public constant maxWithdrawProtocolFeeRate = 10 ** 6;
 
     // withdrawal index.
     uint256 public withdrawalIndex;
@@ -120,7 +127,8 @@ contract TBTPoolV2PermissionUpgradedMock is
         uint256 _capitalLowerBound,
         address _treasury,
         address _vault,
-        address _fee_collection
+        address _fee_collection,
+        address _protocol_fee_collection
     ) public initializer {
 
         AccessControlUpgradeable.__AccessControl_init();
@@ -146,6 +154,7 @@ contract TBTPoolV2PermissionUpgradedMock is
         vault = _vault;
         treasury = _treasury;
         fee_collection = _fee_collection;
+        protocol_fee_collection = _protocol_fee_collection;
 
         // const, reduce risk for now.
         // It's 10%.
@@ -216,6 +225,10 @@ contract TBTPoolV2PermissionUpgradedMock is
         fee_collection = _fee_collection;
     }
 
+    function setProtocolFeeCollection(address _protocol_fee_collection) external onlyRole(POOL_MANAGER_ROLE) {
+        protocol_fee_collection = _protocol_fee_collection;
+    }
+
 
     function setMintFeeRate(uint256 _mintFeeRate)
         external
@@ -226,6 +239,17 @@ contract TBTPoolV2PermissionUpgradedMock is
             "Mint fee rate should be less than 1%"
         );
         mintFeeRate = _mintFeeRate;
+    }
+
+    function setMintProtocolFeeRate(uint256 _mintProtocolFeeRate)
+        external
+        onlyRole(POOL_MANAGER_ROLE)
+    {
+        require(
+            _mintProtocolFeeRate <= maxMintProtocolFeeRate,
+            "Mint protocol fee rate should be less than 1%"
+        );
+        mintProtocolFeeRate = _mintProtocolFeeRate;
     }
 
     // TOOD: revisit the ACL. Currently is not elegant. (can't set global admin)
@@ -240,6 +264,17 @@ contract TBTPoolV2PermissionUpgradedMock is
         withdrawFeeRate = _withdrawFeeRate;
     }
 
+    // TOOD: revisit the ACL. Currently is not elegant. (can't set global admin)
+    function setWithdrawProtocolFeeRate(uint256 _withdrawProtocolFeeRate)
+        external
+        onlyRole(POOL_MANAGER_ROLE)
+    {
+        require(
+            _withdrawProtocolFeeRate <= maxWithdrawProtocolFeeRate,
+            "withdraw fee rate should be less than 1%"
+        );
+        withdrawProtocolFeeRate = _withdrawProtocolFeeRate;
+    }
 
     /* -------------------------- End of Pool Settings -------------------------- */
 
@@ -326,11 +361,16 @@ contract TBTPoolV2PermissionUpgradedMock is
     {
         // calculate fee
         uint256 feeAmount = amount.mul(mintFeeRate).div(FEE_COEFFICIENT);
-        uint256 amountAfterFee = amount.sub(feeAmount);
+        uint256 protocolFeeAmount = amount.mul(mintProtocolFeeRate).div(FEE_COEFFICIENT);
+
+        uint256 amountAfterFee = amount.sub(feeAmount).sub(protocolFeeAmount);
         underlyingToken.safeTransferFrom(msg.sender, treasury, amountAfterFee);
         // collect fee
-        if (feeAmount != 0){
+        if (feeAmount != 0) {
             underlyingToken.safeTransferFrom(msg.sender, fee_collection, feeAmount);
+        }
+        if (protocolFeeAmount != 0) {
+            underlyingToken.safeTransferFrom(msg.sender, protocol_fee_collection, protocolFeeAmount);
         }
 
         amount = amountAfterFee;
@@ -411,9 +451,15 @@ contract TBTPoolV2PermissionUpgradedMock is
         );
         totalPendingWithdrawals = totalPendingWithdrawals.sub(amount);
         uint256 feeAmount = amount.mul(withdrawFeeRate).div(FEE_COEFFICIENT);
-        uint256 amountAfterFee = amount.sub(feeAmount);
+        uint256 protocolfeeAmount = amount.mul(withdrawProtocolFeeRate).div(FEE_COEFFICIENT);
+        uint256 amountAfterFee = amount.sub(feeAmount).sub(protocolfeeAmount);
         underlyingToken.safeTransferFrom(vault, msg.sender, amountAfterFee);
-        underlyingToken.safeTransferFrom(vault, fee_collection, feeAmount);
+        if (feeAmount != 0){
+            underlyingToken.safeTransferFrom(vault, fee_collection, feeAmount);
+        }
+        if(protocolfeeAmount != 0){
+            underlyingToken.safeTransferFrom(vault, protocol_fee_collection, protocolfeeAmount);
+        }
         emit WithdrawUnderlyingToken(
             msg.sender,
             amount,

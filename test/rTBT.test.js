@@ -45,7 +45,7 @@ describe("rTBT Contract", async () => {
   }
 
   beforeEach(async () => {
-    [controller, treasury, vault, investor, investor2, investor3, deployer, admin, poolManager, fee_collection] = await ethers.getSigners();
+    [controller, treasury, vault, investor, investor2, investor3, deployer, admin, poolManager, fee_collection, protocol_fee_collection] = await ethers.getSigners();
     now = (await ethers.provider.getBlock("latest")).timestamp;
     const ERC20Token = await ethers.getContractFactory("ERC20Token");
     usdcToken = await ERC20Token.connect(deployer).deploy("USDC", "USDC", 6);
@@ -61,7 +61,8 @@ describe("rTBT Contract", async () => {
       0,
       vault.address,
       treasury.address,
-      fee_collection.address
+      fee_collection.address,
+      protocol_fee_collection.address
     ]);
     await tbtPool.deployed();
 
