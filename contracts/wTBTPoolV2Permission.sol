@@ -42,7 +42,7 @@ contract wTBTPoolV2Permission is
 	IERC20Upgradeable public underlyingToken;
 	// Vault, used to pay USDC to user when redeem cToken.
 	address public vault;
-	// Treasury, used to receive USDC from user when buy cToken.
+	// Treasury, used to receive USDC from user when mint cToken.
 	address public treasury;
 	// Fee Collection, used to receive fee when mint or redeem.
 	address public fee_collection;
@@ -56,7 +56,7 @@ contract wTBTPoolV2Permission is
 	// mintFeeRate: 0.1% => 100000 (10 ** 5)
 	// mintFeeRate: 10% => 10000000 (10 ** 7)
 	// mintFeeRate: 100% => 100000000 (10 ** 8)
-	// It's used when call buy method.
+	// It's used when call mint method.
 	uint256 public mintFeeRate;
 
 	// Pending withdrawals, value is the USDC amount, user can claim whenever the vault has enough USDC.
@@ -103,7 +103,7 @@ contract wTBTPoolV2Permission is
 
 	event WithdrawUnderlyingToken(address indexed user, uint256 amount, uint256 fee);
 
-	// Treasury: When user buy cToken, treasury will receive USDC.
+	// Treasury: When user mint cToken, treasury will receive USDC.
 	// Vault: When user redeem cToken, vault will pay USDC.
 	// So should transfer money from treasury to vault, and let vault approve 10**70 to TBTPoolV2 Contract.
 	function initialize(
@@ -265,7 +265,7 @@ contract wTBTPoolV2Permission is
 
 	// @param amount: the amount of underlying token, 1 USDC = 10**6
 	// @param data: certificate data
-	function buy(uint256 amount) external whenNotPaused realizeReward {
+	function mint(uint256 amount) external whenNotPaused realizeReward {
 		// calculate fee
 		uint256 feeAmount = amount.mul(mintFeeRate).div(FEE_COEFFICIENT);
 		uint256 amountAfterFee = amount.sub(feeAmount);
@@ -289,7 +289,7 @@ contract wTBTPoolV2Permission is
 	}
 
 	// @param amount: the amount of cToken, 1 cToken = 10**18, which eaquals to 1 USDC (if not interest).
-	function sell(uint256 amount) external whenNotPaused realizeReward {
+	function redeem(uint256 amount) external whenNotPaused realizeReward {
 		require(amount <= cTokenBalances[msg.sender], "100");
 		require(totalUnderlying >= 0, "101");
 		require(cTokenTotalSupply > 0, "104");

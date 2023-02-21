@@ -34,12 +34,12 @@ describe("TBT Contract", async () => {
 
 	let rtbt
 
-	const buy = async (account, amount) => {
-		await tbtPool.connect(account).buy(amount)
+	const mint = async (account, amount) => {
+		await tbtPool.connect(account).mint(amount)
 	}
 
-	const sell = async (account, amount) => {
-		await tbtPool.connect(account).sell(amount)
+	const redeem = async (account, amount) => {
+		await tbtPool.connect(account).redeem(amount)
 	}
 
 	beforeEach(async () => {
@@ -68,7 +68,7 @@ describe("TBT Contract", async () => {
 		TBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")
 		tbtPool = await upgrades.deployProxy(TBTPool, [
 			"TBT Pool 1",
-			"CP1",
+			"wTBT",
 			admin.address,
 			usdcToken.address,
 			0,
@@ -110,7 +110,7 @@ describe("TBT Contract", async () => {
 			await mineBlockWithTimestamp(ethers.provider, now)
 			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy)
-			await tbtPool.connect(investor).buy(amountToBuy)
+			await tbtPool.connect(investor).mint(amountToBuy)
 
 			const tbtBalance = await tbtPool.balanceOf(investor.address)
 
@@ -123,7 +123,7 @@ describe("TBT Contract", async () => {
 			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy)
 
-			await tbtPool.connect(investor).buy(amountToBuy)
+			await tbtPool.connect(investor).mint(amountToBuy)
 
 			await expect(rtbt.connect(investor).wrap(0)).to.be.reverted
 		})
@@ -134,7 +134,7 @@ describe("TBT Contract", async () => {
 			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy)
 
-			await tbtPool.connect(investor).buy(amountToBuy)
+			await tbtPool.connect(investor).mint(amountToBuy)
 
 			await rtbt.connect(admin).pause()
 
@@ -152,7 +152,7 @@ describe("TBT Contract", async () => {
 
 			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy)
-			await tbtPool.connect(investor).buy(amountToBuy)
+			await tbtPool.connect(investor).mint(amountToBuy)
 
 			const tbtBalance = await tbtPool.balanceOf(investor.address)
 
@@ -203,10 +203,10 @@ describe("TBT Contract", async () => {
 
 			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy)
-			await tbtPool.connect(investor).buy(amountToBuy)
+			await tbtPool.connect(investor).mint(amountToBuy)
 
 			await usdcToken.connect(investor2).approve(tbtPool.address, amountToBuy)
-			await tbtPool.connect(investor2).buy(amountToBuy)
+			await tbtPool.connect(investor2).mint(amountToBuy)
 		})
 
 		it("Should have same shares and TBT amount", async () => {
@@ -244,7 +244,7 @@ describe("TBT Contract", async () => {
 
 			const amountToBuy = ethers.utils.parseUnits("100000", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy)
-			await tbtPool.connect(investor).buy(amountToBuy)
+			await tbtPool.connect(investor).mint(amountToBuy)
 			const tbtBalance = await tbtPool.balanceOf(investor.address)
 			await rtbt.connect(investor).wrap(tbtBalance)
 		})
@@ -310,7 +310,7 @@ describe("TBT Contract", async () => {
 
 			const amountToBuy = ethers.utils.parseUnits("10000", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy)
-			await tbtPool.connect(investor).buy(amountToBuy)
+			await tbtPool.connect(investor).mint(amountToBuy)
 		})
 
 		it("Should be rebase balance with APR", async () => {
@@ -354,7 +354,7 @@ describe("TBT Contract", async () => {
 		it("Should have the same balance after upgrade", async () => {
 			const amountToBuy = ethers.utils.parseUnits("1000000", 6)
 			await usdcToken.connect(investor).approve(tbtPool.address, amountToBuy)
-			await buy(investor, amountToBuy)
+			await mint(investor, amountToBuy)
 			const tbtBalance = await tbtPool.balanceOf(investor.address)
 			await tbtPool.connect(investor).approve(rtbt.address, tbtBalance)
 			await rtbt.connect(investor).wrap(tbtBalance)

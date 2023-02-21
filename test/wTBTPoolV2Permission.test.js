@@ -111,12 +111,12 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 	let now
 
-	const buy = async (account, amount) => {
-		await wtbtPool.connect(account).buy(amount)
+	const mint = async (account, amount) => {
+		await wtbtPool.connect(account).mint(amount)
 	}
 
-	const sell = async (account, amount) => {
-		await wtbtPool.connect(account).sell(amount)
+	const redeem = async (account, amount) => {
+		await wtbtPool.connect(account).redeem(amount)
 	}
 
 	beforeEach(async () => {
@@ -177,94 +177,100 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		clockMock = await ClockMock.deploy()
 	})
 
-	describe("Buy", async () => {
-		it("Should be able to buy", async () => {
+	describe("Mint", async () => {
+		it("Should be able to mint", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await wtbtPool.connect(investor).buy(amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await wtbtPool.connect(investor).mint(amountToMint)
 		})
 
-		it("Should not be able to buy when pause", async () => {
+		it("Should not be able to mint when pause", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
 			await wtbtPool.connect(admin).pause()
-			await expect(wtbtPool.connect(investor).buy(amountToBuy)).to.be.reverted
+			await expect(wtbtPool.connect(investor).mint(amountToMint)).to.be.reverted
 		})
 	})
 
-	describe("Sell", async () => {
+	describe("Redeem", async () => {
 		beforeEach(async () => {
-			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await wtbtPool.connect(investor).buy(amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await wtbtPool.connect(investor).mint(amountToMint)
 		})
 
-		it("Should be able to sell", async () => {
+		it("Should be able to redeem", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const amountToSell = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			await wtbtPool.connect(investor).sell(amountToSell)
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await wtbtPool.connect(investor).redeem(amountToRedeem)
 		})
 
-		it("Should not be able to sell when pause", async () => {
+		it("Should not be able to redeem when pause", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const amountToSell = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
 			await wtbtPool.connect(admin).pause()
-			await expect(wtbtPool.connect(investor).sell(amountToSell)).to.be.reverted
+			await expect(wtbtPool.connect(investor).redeem(amountToRedeem)).to.be.reverted
 		})
 
-		it("Should not be able to sell more than balance", async () => {
+		it("Should not be able to redeem more than balance", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const amountToSell = (
+			const amountToRedeem = (
 				await wtbtPool.connect(investor).cTokenBalances(investor.address)
 			).add(1)
-			await expect(wtbtPool.connect(investor).sell(amountToSell)).to.be.revertedWith("100")
+			await expect(wtbtPool.connect(investor).redeem(amountToRedeem)).to.be.revertedWith(
+				"100"
+			)
 		})
 
-		it("Should not be able to sell all if left capital will be below lower bound", async () => {
+		it("Should not be able to redeem all if left capital will be below lower bound", async () => {
 			await wtbtPool.connect(admin).setCapitalLowerBound(1)
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const amountToSell = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			await expect(wtbtPool.connect(investor).sell(amountToSell)).to.be.revertedWith("102")
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await expect(wtbtPool.connect(investor).redeem(amountToRedeem)).to.be.revertedWith(
+				"102"
+			)
 		})
 
-		it("Should be able to sell all if left capital will be equal or more than lower bound", async () => {
+		it("Should be able to redeem all if left capital will be equal or more than lower bound", async () => {
 			await wtbtPool.connect(admin).setCapitalLowerBound(0)
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const amountToSell = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			await wtbtPool.connect(investor).sell(amountToSell)
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await wtbtPool.connect(investor).redeem(amountToRedeem)
 		})
 
-		it("Should not be able to sell a half if left capital will be below lower bound", async () => {
+		it("Should not be able to redeem a half if left capital will be below lower bound", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
-			// Reward rate is zero, only one user, selling a half means taking half of the underlying.
-			const amountToSell = (
+			// Reward rate is zero, only one user, redeeming a half means taking half of the underlying.
+			const amountToRedeem = (
 				await wtbtPool.connect(investor).cTokenBalances(investor.address)
 			).div(2)
 			const totalUnderlying = await wtbtPool.totalUnderlying()
 			await wtbtPool.connect(admin).setCapitalLowerBound(totalUnderlying.div(2).add(1))
-			await expect(wtbtPool.connect(investor).sell(amountToSell)).to.be.revertedWith("102")
+			await expect(wtbtPool.connect(investor).redeem(amountToRedeem)).to.be.revertedWith(
+				"102"
+			)
 		})
 
-		it("Should be able to sell a half if left capital will be equal or more than lower bound", async () => {
+		it("Should be able to redeem a half if left capital will be equal or more than lower bound", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
-			// Reward rate is zero, only one user, selling a half means taking half of the underlying.
-			const amountToSell = (
+			// Reward rate is zero, only one user, redeeming a half means taking half of the underlying.
+			const amountToRedeem = (
 				await wtbtPool.connect(investor).cTokenBalances(investor.address)
 			).div(2)
 			const totalUnderlying = await wtbtPool.totalUnderlying()
 			await wtbtPool.connect(admin).setCapitalLowerBound(totalUnderlying.div(2))
-			await wtbtPool.connect(investor).sell(amountToSell)
+			await wtbtPool.connect(investor).redeem(amountToRedeem)
 		})
 	})
 
@@ -272,9 +278,9 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		it("Should get all reward when only one user exists", async () => {
 			const stakedTime = ONE_YEAR
 			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
-			const amountToBuy = ethers.utils.parseUnits("1000000", 6)
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await buy(investor, amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("1000000", 6)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await mint(investor, amountToMint)
 
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
@@ -282,13 +288,13 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 			now = now + stakedTime
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const amountToSell = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			await sell(investor, amountToSell)
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await redeem(investor, amountToRedeem)
 			const pendingWithdrawal = await wtbtPool
 				.connect(investor)
 				.getPendingWithdrawal(investor.address)
 
-			const expected = amountToBuy.mul(108).div(100)
+			const expected = amountToMint.mul(108).div(100)
 			// with 0.01% tolorence;
 			expect(pendingWithdrawal).to.be.within(
 				expected.mul(9999).div(10000),
@@ -299,11 +305,11 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		it("Should get half the reward when two users staked the same amount", async () => {
 			const stakedTime = ONE_YEAR
 			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
-			const amountToBuy = ethers.utils.parseUnits("1000000", 6)
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await buy(investor, amountToBuy)
-			await usdcToken.connect(investor2).approve(wtbtPool.address, amountToBuy)
-			await buy(investor2, amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("1000000", 6)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await mint(investor, amountToMint)
+			await usdcToken.connect(investor2).approve(wtbtPool.address, amountToMint)
+			await mint(investor2, amountToMint)
 
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
@@ -311,12 +317,12 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 			now = now + stakedTime
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const amountToSell = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			await sell(investor, amountToSell)
-			const amountToSell2 = await wtbtPool
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await redeem(investor, amountToRedeem)
+			const amountToRedeem2 = await wtbtPool
 				.connect(investor2)
 				.cTokenBalances(investor2.address)
-			await sell(investor2, amountToSell2)
+			await redeem(investor2, amountToRedeem2)
 
 			const pendingWithdrawal = await wtbtPool.getPendingWithdrawal(investor.address)
 			const pendingWithdrawal2 = await wtbtPool.getPendingWithdrawal(investor2.address)
@@ -325,52 +331,52 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				pendingWithdrawal2.mul(10001).div(10000)
 			)
 
-			const expectedWithdrawal = amountToBuy.mul(108).div(100)
+			const expectedWithdrawal = amountToMint.mul(108).div(100)
 			expect(pendingWithdrawal).to.be.within(
 				expectedWithdrawal.mul(9999).div(10000),
 				expectedWithdrawal.mul(10001).div(10000)
 			)
 		})
 
-		it("Should be equal for getCTokenByUnderlying and buy cToken", async () => {
+		it("Should be equal for getCTokenByUnderlying and mint cToken", async () => {
 			const timepass = ONE_DAY
 			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
-			const amountToBuy = ethers.utils.parseUnits("100000", 6)
+			const amountToMint = ethers.utils.parseUnits("100000", 6)
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy * 2)
-			await buy(investor, amountToBuy)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint * 2)
+			await mint(investor, amountToMint)
 			now = now + timepass
 			await mineBlockWithTimestamp(ethers.provider, now)
 			await wtbtPool.connect(admin).setTargetAPR(0)
 			const beforeCTokenBalance = await wtbtPool.connect(investor).balanceOf(investor.address)
 			const getCTokenAmount = await wtbtPool
 				.connect(investor)
-				.getCTokenByUnderlying(amountToBuy)
-			await buy(investor, amountToBuy)
-			const buyCTokenAmount = (
+				.getCTokenByUnderlying(amountToMint)
+			await mint(investor, amountToMint)
+			const mintCTokenAmount = (
 				await wtbtPool.connect(investor).balanceOf(investor.address)
 			).sub(beforeCTokenBalance)
-			await expect(getCTokenAmount.toString()).to.be.eq(buyCTokenAmount.toString())
+			await expect(getCTokenAmount.toString()).to.be.eq(mintCTokenAmount.toString())
 		})
 
-		it("Should be equal for getUnderlyingByCToken and sell cToken", async () => {
+		it("Should be equal for getUnderlyingByCToken and redeem cToken", async () => {
 			const timepass = ONE_DAY
 			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
-			const amountToBuy = ethers.utils.parseUnits("100000", 6)
+			const amountToMint = ethers.utils.parseUnits("100000", 6)
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await buy(investor, amountToBuy)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await mint(investor, amountToMint)
 			now = now + timepass
 			await mineBlockWithTimestamp(ethers.provider, now)
 			await wtbtPool.connect(admin).setTargetAPR(0)
 
-			const amountToSell = (
+			const amountToRedeem = (
 				await wtbtPool.connect(investor).cTokenBalances(investor.address)
 			).div(2)
 			const getUnderlyingByCToken = await wtbtPool
 				.connect(investor)
-				.getUnderlyingByCToken(amountToSell)
-			await sell(investor, amountToSell)
+				.getUnderlyingByCToken(amountToRedeem)
+			await redeem(investor, amountToRedeem)
 
 			const orderId = await wtbtPool.withdrawalIndex()
 
@@ -382,9 +388,9 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		it("Should be token value always > 1", async () => {
 			const timepass = ONE_YEAR
 			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
-			const amountToBuy = ethers.utils.parseUnits("100000", 6)
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await buy(investor, amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("100000", 6)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await mint(investor, amountToMint)
 
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
 			now = (await ethers.provider.getBlock("latest")).timestamp + timepass
@@ -465,11 +471,11 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			const POOL_MANAGER_ROLE = await wtbtPool.POOL_MANAGER_ROLE()
 			await wtbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address)
 			await wtbtPool.connect(poolManager).setProcessPeriod(ONE_DAY)
-			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await wtbtPool.connect(investor).buy(amountToBuy)
-			const amountToSell = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			await wtbtPool.connect(investor).sell(amountToSell)
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await wtbtPool.connect(investor).mint(amountToMint)
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await wtbtPool.connect(investor).redeem(amountToRedeem)
 		})
 
 		it("Should be able to withdrawal", async () => {
@@ -523,10 +529,10 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await expect(wtbtPool.connect(poolManager).setWithdrawFeeRate(10000000)).to.be.reverted
 		})
 
-		it("Should be able to buy with fee", async () => {
-			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await wtbtPool.connect(investor).buy(amountToBuy)
+		it("Should be able to mint with fee", async () => {
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await wtbtPool.connect(investor).mint(amountToMint)
 			// 1% fee -> 99 cToken
 			expect(await wtbtPool.balanceOf(investor.address)).to.equal(
 				ethers.utils.parseUnits("99", 18)
@@ -537,16 +543,16 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			)
 		})
 
-		it("Should be able to sell with fee", async () => {
-			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await wtbtPool.connect(investor).buy(amountToBuy)
+		it("Should be able to redeem with fee", async () => {
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await wtbtPool.connect(investor).mint(amountToMint)
 
 			const beforeFeeCollectBalance = await usdcToken.balanceOf(fee_collection.address)
 			const beforeInvestorBalance = await usdcToken.balanceOf(investor.address)
 
-			const amountToSell = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			await wtbtPool.connect(investor).sell(amountToSell)
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await wtbtPool.connect(investor).redeem(amountToRedeem)
 
 			const orderId = await wtbtPool.withdrawalIndex()
 
@@ -580,9 +586,9 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 	describe("ERC20", async () => {
 		it("Should be able to approve and see allowence and transferFrom", async () => {
-			const amountToBuy = ethers.utils.parseUnits("1000000", 6)
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await buy(investor, amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("1000000", 6)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await mint(investor, amountToMint)
 
 			await wtbtPool
 				.connect(investor)
@@ -609,33 +615,33 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 		it("Should be able to totalSupply", async () => {
 			// + 1000000 to 1000000
-			const amountToBuy = ethers.utils.parseUnits("1000000", 6)
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await buy(investor, amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("1000000", 6)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await mint(investor, amountToMint)
 			await expect(await wtbtPool.totalSupply()).to.equal(
 				ethers.utils.parseUnits("1000000", 18)
 			)
 
 			// - 500000 to 50000
-			await sell(investor, ethers.utils.parseUnits("500000", 18))
+			await redeem(investor, ethers.utils.parseUnits("500000", 18))
 			await expect(await wtbtPool.totalSupply()).to.equal(
 				ethers.utils.parseUnits("500000", 18)
 			)
 
 			// + 1000000 to 1500000
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await buy(investor, amountToBuy)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await mint(investor, amountToMint)
 			await expect(await wtbtPool.totalSupply()).to.equal(
 				ethers.utils.parseUnits("1500000", 18)
 			)
 		})
 
-		it("Should be emit event when buy and sell", async () => {
+		it("Should be emit event when mint and redeem", async () => {
 			// + 100000 to 1000000
-			const amountToBuy = ethers.utils.parseUnits("1000000", 6)
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("1000000", 6)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
 
-			await expect(wtbtPool.connect(investor).buy(amountToBuy))
+			await expect(wtbtPool.connect(investor).mint(amountToMint))
 				.to.emit(wtbtPool, "Transfer")
 				.withArgs(
 					ethers.constants.AddressZero,
@@ -644,8 +650,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				)
 
 			// - 500000 to 50000
-			const amountToSell = ethers.utils.parseUnits("500000", 18)
-			await expect(wtbtPool.connect(investor).sell(amountToSell))
+			const amountToRedeem = ethers.utils.parseUnits("500000", 18)
+			await expect(wtbtPool.connect(investor).redeem(amountToRedeem))
 				.to.emit(wtbtPool, "Transfer")
 				.withArgs(
 					investor.address,
@@ -657,9 +663,9 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 	describe("Upgradeable", async () => {
 		it("Should have the same cTokenBalances after upgrade", async () => {
-			const amountToBuy = ethers.utils.parseUnits("1000000", 6)
-			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
-			await buy(investor, amountToBuy)
+			const amountToMint = ethers.utils.parseUnits("1000000", 6)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await mint(investor, amountToMint)
 			const cTokenBalanceOld = await wtbtPool.cTokenBalances(investor.address)
 
 			wTBTPoolUpgraded = await ethers.getContractFactory("wTBTPoolV2PermissionUpgradedMock")
