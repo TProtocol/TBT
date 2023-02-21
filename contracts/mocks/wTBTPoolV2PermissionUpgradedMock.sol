@@ -13,7 +13,7 @@ import "../tools/DomainAware.sol";
 
 import "hardhat/console.sol";
 
-contract TBTPoolV2PermissionUpgradedMock is
+contract wTBTPoolV2PermissionUpgradedMock is
 	DomainAware,
 	AccessControlUpgradeable,
 	ERC20Upgradeable,
@@ -180,15 +180,15 @@ contract TBTPoolV2PermissionUpgradedMock is
 		capitalLowerBound = _capitalLowerBound;
 	}
 
-	function setVault(address _vault) external onlyRole(POOL_MANAGER_ROLE) {
+	function setVault(address _vault) external onlyRole(ADMIN_ROLE) {
 		vault = _vault;
 	}
 
-	function setTreasury(address _treasury) external onlyRole(POOL_MANAGER_ROLE) {
+	function setTreasury(address _treasury) external onlyRole(ADMIN_ROLE) {
 		treasury = _treasury;
 	}
 
-	function setFeeCollection(address _fee_collection) external onlyRole(POOL_MANAGER_ROLE) {
+	function setFeeCollection(address _fee_collection) external onlyRole(ADMIN_ROLE) {
 		fee_collection = _fee_collection;
 	}
 

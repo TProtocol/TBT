@@ -7,41 +7,41 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/StorageSlotUpgradeable.sol";
 
-import "../interface/ITBTPoolV2Permission.sol";
+import "./interface/IwTBTPoolV2Permission.sol";
 
-contract rTBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable {
+contract TBT is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable {
 	using SafeMathUpgradeable for uint256;
 	using SafeERC20Upgradeable for IERC20Upgradeable;
 
 	bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
 	/**
-	 * @dev rTBT balances are calculated based on the accounts' shares and
-	 * the value of TBT locked at this contract.
+	 * @dev TBT balances are calculated based on the accounts' shares and
+	 * the value of wTBT locked at this contract.
 	 *
-	 * user balance = user shares * value for per TBT
+	 * user balance = user shares * value for per wTBT
 	 *
-	 * shares is equal to TBT with 1:1
+	 * shares is equal to wTBT with 1:1
 	 */
 	mapping(address => uint256) private shares;
 
-	IERC20Upgradeable public TBT;
+	IERC20Upgradeable public wTBT;
 
-	// equal to amount of tbt that locked contract.
-	bytes32 internal constant TOTAL_SHARES_POSITION = keccak256("TProtocol.rTPT.totalShares");
+	// equal to amount of wtbt that locked contract.
+	bytes32 internal constant TOTAL_SHARES_POSITION = keccak256("TProtocol.TPT.totalShares");
 
 	function initialize(
 		string memory name,
 		string memory symbol,
 		address admin,
-		IERC20Upgradeable _tbt
+		IERC20Upgradeable _wtbt
 	) public initializer {
 		AccessControlUpgradeable.__AccessControl_init();
 
 		ERC20Upgradeable.__ERC20_init(name, symbol);
 		PausableUpgradeable.__Pausable_init();
 
-		TBT = _tbt;
+		wTBT = _wtbt;
 
 		require(admin != address(0), "103");
 		_setupRole(ADMIN_ROLE, admin);
@@ -93,11 +93,11 @@ contract rTBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgrade
 		if (totalShares == 0) {
 			return 0;
 		} else {
-			uint256 CTOKEN_TO_UNDERLYING = ITBTPoolV2Permission(address(TBT))
+			uint256 CTOKEN_TO_UNDERLYING = IwTBTPoolV2Permission(address(wTBT))
 				.getInitalCtokenToUnderlying();
 			// normalize to 10**18
 			return
-				ITBTPoolV2Permission(address(TBT)).getUnderlyingByCToken(totalShares).mul(
+				IwTBTPoolV2Permission(address(wTBT)).getUnderlyingByCToken(totalShares).mul(
 					CTOKEN_TO_UNDERLYING
 				);
 		}
@@ -201,39 +201,35 @@ contract rTBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgrade
 		return _getTotalLockUnderlying();
 	}
 
-	// TBT -> rTBT
-	function wrap(uint256 _tbtAmount) external {
-		require(_tbtAmount > 0, "can't wrap zero TBT");
-		TBT.safeTransferFrom(msg.sender, address(this), _tbtAmount);
-		_mintShares(msg.sender, _tbtAmount);
+	// wTBT -> TBT
+	function wrap(uint256 _wtbtAmount) external {
+		require(_wtbtAmount > 0, "can't wrap zero wTBT");
+		wTBT.safeTransferFrom(msg.sender, address(this), _wtbtAmount);
+		_mintShares(msg.sender, _wtbtAmount);
 
-		emit Transfer(address(0), msg.sender, getAmountByShares(_tbtAmount));
+		emit Transfer(address(0), msg.sender, getAmountByShares(_wtbtAmount));
 	}
 
-	// wrap rTBT -> TBT
-	function unwrap(uint256 _amount) public {
+	// wrap TBT -> wTBT
+	function unwrap(uint256 _amount) external {
 		// equal shares
-		uint256 tbtAmount = getSharesByAmount(_amount);
-		require(tbtAmount > 0, "can't wrap zero rTBT");
-		_burnShares(msg.sender, tbtAmount);
-		TBT.safeTransfer(msg.sender, tbtAmount);
+		uint256 wtbtAmount = getSharesByAmount(_amount);
+		require(wtbtAmount > 0, "can't wrap zero TBT");
+		_burnShares(msg.sender, wtbtAmount);
+		wTBT.safeTransfer(msg.sender, wtbtAmount);
 
 		emit Transfer(msg.sender, address(0), _amount);
 	}
 
-	// wrap all rTBT -> TBT
+	// wrap all TBT -> wTBT
 	function unwrapAll() external {
 		uint256 userBalance = balanceOf(msg.sender);
 		uint256 shareAmount = sharesOf(msg.sender);
 
-		require(shareAmount > 0, "can't wrap zero rTBT");
+		require(shareAmount > 0, "can't wrap zero TBT");
 		_burnShares(msg.sender, shareAmount);
 
-		TBT.safeTransfer(msg.sender, shareAmount);
+		wTBT.safeTransfer(msg.sender, shareAmount);
 		emit Transfer(msg.sender, address(0), userBalance);
-	}
-
-	function mockNewFunction() public pure returns (string memory) {
-		return "Hello World!";
 	}
 }

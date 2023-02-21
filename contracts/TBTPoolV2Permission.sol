@@ -13,7 +13,7 @@ import "./tools/DomainAware.sol";
 
 import "hardhat/console.sol";
 
-contract TBTPoolV2Permission is
+contract wTBTPoolV2Permission is
 	DomainAware,
 	AccessControlUpgradeable,
 	ERC20Upgradeable,
