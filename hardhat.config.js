@@ -4,7 +4,7 @@ require("@nomicfoundation/hardhat-chai-matchers")
 require("hardhat-deploy")
 require("solidity-coverage")
 require("hardhat-gas-reporter")
-require('@openzeppelin/hardhat-upgrades')
+require("@openzeppelin/hardhat-upgrades")
 require("dotenv").config()
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
@@ -12,6 +12,7 @@ const DEPLOYER_KEY = process.env.DEPLOYER_KEY
 const TREASURY_KEY = process.env.TREASURY_KEY
 const VAULT_KEY = process.env.VAULT_KEY
 const FEE_COLLECTOR_KEY = process.env.FEE_COLLECTOR_KEY
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
 
 module.exports = {
 	solidity: {
@@ -24,11 +25,17 @@ module.exports = {
 		},
 	},
 	networks: {
-		hardhat: { chainId: 31337 },
-		bscTestnet: {
-			url: "https://data-seed-prebsc-2-s3.binance.org:8545",
+		hardhat: { chainId: 1337 },
+		// bscTestnet: {
+		// 	url: "https://data-seed-prebsc-2-s3.binance.org:8545",
+		// 	accounts: [DEPLOYER_KEY, TREASURY_KEY, VAULT_KEY, FEE_COLLECTOR_KEY],
+		// 	chainId: 97,
+		// },
+		goerli: {
+			url: "https://eth-goerli.g.alchemy.com/v2/" + ALCHEMY_API_KEY,
+			chainId: 5,
 			accounts: [DEPLOYER_KEY, TREASURY_KEY, VAULT_KEY, FEE_COLLECTOR_KEY],
-			chainId: 97,
+			confirmations: 2,
 		},
 	},
 	gasReporter: {
@@ -38,7 +45,7 @@ module.exports = {
 	},
 	etherscan: {
 		apiKey: {
-			bscTestnet: ETHERSCAN_API_KEY,
+			goerli: ETHERSCAN_API_KEY,
 		},
 	},
 	namedAccounts: {

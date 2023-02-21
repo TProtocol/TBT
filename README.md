@@ -13,15 +13,13 @@
 - 108: (withdrawUnderlyingTokenByID) the withdrawal order is not ready for withdral.
 
 ## Development Deoploy & Verify
-For BSC Testnet
+For Goerli Testnet
 ``` bash
-yarn hardhat deoploy --network bscTestnet
+yarn hardhat deoploy --network goerli
 ```
 
 ### Initalize the contract
-``` bash
-yarn hardhat run scripts/TBT-Initalize.js --network bscTestnet
-```
+
 
 ## BSC Testnet
 ### Contract Address

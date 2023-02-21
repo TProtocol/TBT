@@ -4,19 +4,19 @@ const { verify } = require("../helper-function")
 
 module.exports = async ({ getNamedAccounts, deployments }) => {
 	const { deploy, log } = deployments
-	const { deployer } = await getNamedAccounts()
+	const { deployer, treasury, vault, fee_collector } = await getNamedAccounts()
 
-	const TBT = await deploy("TBTPoolV2Permission", {
+	const WTBT = await deploy("TBTPoolV2Permission", {
 		from: deployer,
 		log: true,
 		waitConfirmations: 2,
 	})
-	log(`🎉 TBTPoolV2Permission deployed at ${TBT.address}`)
+	log(`🎉 TBTPoolV2Permission deployed at ${WTBT.address}`)
 
 	if (!developmentChains.includes(network.name)) {
-		console.log("Verifying TBT on Etherscan...")
-		await verify(TBT.address)
+		console.log("Verifying WTBT on Etherscan...")
+		await verify(WTBT.address)
 	}
 }
 
-module.exports.tags = ["all", "TBT"]
+module.exports.tags = ["all", "WTBT"]
