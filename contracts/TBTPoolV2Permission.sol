@@ -200,19 +200,19 @@ contract TBTPoolV2Permission is
     }
 
 
-    function setVault(address _vault) external onlyRole(POOL_MANAGER_ROLE) {
+    function setVault(address _vault) external onlyRole(ADMIN_ROLE) {
         vault = _vault;
     }
 
 
     function setTreasury(address _treasury)
         external
-        onlyRole(POOL_MANAGER_ROLE)
+        onlyRole(ADMIN_ROLE)
     {
         treasury = _treasury;
     }
 
-    function setFeeCollection(address _fee_collection) external onlyRole(POOL_MANAGER_ROLE) {
+    function setFeeCollection(address _fee_collection) external onlyRole(ADMIN_ROLE) {
         fee_collection = _fee_collection;
     }
 

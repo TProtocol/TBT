@@ -206,7 +206,7 @@ contract rTBT is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable
     }
 
     // wrap rTBT -> TBT
-    function unwrap(uint256 _amount) public {
+    function unwrap(uint256 _amount) external {
         // equal shares
         uint256 tbtAmount =  getSharesByAmount(_amount);
         require(tbtAmount > 0 , "can't wrap zero rTBT");

@@ -365,6 +365,26 @@ describe("TBTPool V2 Permission Contract", async () => {
       await expect(tbtPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted;
     })
 
+    it("Should not be able to change pool settings without ADMIN_ROLE", async () => {
+      await expect(tbtPool.connect(poolManager).setTargetAPR(1000000)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setMintFeeRate(1)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setWithdrawFeeRate(1)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setVault(vault.address)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setFeeCollection(fee_collection.address)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted;
+    })
+
+    it("Should not be able to change pool settings with POOL_MANAGER_ROLE", async () => {
+      const POOL_MANAGER_ROLE = await tbtPool.POOL_MANAGER_ROLE();
+      await tbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
+
+      await expect(tbtPool.connect(poolManager).setVault(vault.address)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted;
+      await expect(tbtPool.connect(poolManager).setFeeCollection(fee_collection.address)).to.be.reverted;
+    })
+
     it("Should be able to change pool settings with POOL_MANAGER_ROLE", async () => {
       const POOL_MANAGER_ROLE = await tbtPool.POOL_MANAGER_ROLE();
       await tbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address);
@@ -372,10 +392,13 @@ describe("TBTPool V2 Permission Contract", async () => {
       await tbtPool.connect(poolManager).setMintFeeRate(1);
       await tbtPool.connect(poolManager).setWithdrawFeeRate(1);
       await tbtPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))
-      await tbtPool.connect(poolManager).setVault(vault.address);
-      await tbtPool.connect(poolManager).setTreasury(treasury.address);
-      await tbtPool.connect(poolManager).setFeeCollection(fee_collection.address);
       await tbtPool.connect(poolManager).setProcessPeriod(100);
+    })
+
+    it("Should be able to change pool settings with ADMIN_ROLE", async () => {
+      await tbtPool.connect(admin).setVault(vault.address);
+      await tbtPool.connect(admin).setTreasury(treasury.address);
+      await tbtPool.connect(admin).setFeeCollection(fee_collection.address);
     })
 
     it("Should not be able to change pause settings without ADMIN_ROLE", async () => {
