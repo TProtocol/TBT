@@ -4,9 +4,6 @@ pragma solidity ^0.8.0;
 
 import "../roles/MinterRole.sol";
 
-
 contract MinterMock is MinterRole {
-
-  constructor() MinterRole() {}
-
+	constructor() MinterRole() {}
 }

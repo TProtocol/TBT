@@ -11,45 +11,45 @@ import "./Roles.sol";
  * @dev Minters are responsible for minting new tokens.
  */
 abstract contract MinterRole {
-    using Roles for Roles.Role;
+	using Roles for Roles.Role;
 
-    event MinterAdded(address indexed account);
-    event MinterRemoved(address indexed account);
+	event MinterAdded(address indexed account);
+	event MinterRemoved(address indexed account);
 
-    Roles.Role private _minters;
+	Roles.Role private _minters;
 
-    constructor() {
-        _addMinter(msg.sender);
-    }
+	constructor() {
+		_addMinter(msg.sender);
+	}
 
-    modifier onlyMinter() virtual {
-        require(isMinter(msg.sender));
-        _;
-    }
+	modifier onlyMinter() virtual {
+		require(isMinter(msg.sender));
+		_;
+	}
 
-    function isMinter(address account) public view returns (bool) {
-        return _minters.has(account);
-    }
+	function isMinter(address account) public view returns (bool) {
+		return _minters.has(account);
+	}
 
-    function addMinter(address account) public onlyMinter {
-        _addMinter(account);
-    }
+	function addMinter(address account) public onlyMinter {
+		_addMinter(account);
+	}
 
-    function removeMinter(address account) public onlyMinter {
-        _removeMinter(account);
-    }
+	function removeMinter(address account) public onlyMinter {
+		_removeMinter(account);
+	}
 
-    function renounceMinter() public {
-        _removeMinter(msg.sender);
-    }
+	function renounceMinter() public {
+		_removeMinter(msg.sender);
+	}
 
-    function _addMinter(address account) internal {
-        _minters.add(account);
-        emit MinterAdded(account);
-    }
+	function _addMinter(address account) internal {
+		_minters.add(account);
+		emit MinterAdded(account);
+	}
 
-    function _removeMinter(address account) internal {
-        _minters.remove(account);
-        emit MinterRemoved(account);
-    }
+	function _removeMinter(address account) internal {
+		_minters.remove(account);
+		emit MinterRemoved(account);
+	}
 }
