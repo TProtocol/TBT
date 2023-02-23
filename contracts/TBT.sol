@@ -201,7 +201,10 @@ contract TBT is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable 
 		return _getTotalLockUnderlying();
 	}
 
-	// wTBT -> TBT
+	/**
+	 * @dev wrap wTBT to TBT
+	 * @param _wtbtAmount the amount of wrapping
+	 */
 	function wrap(uint256 _wtbtAmount) external {
 		require(_wtbtAmount > 0, "can't wrap zero wTBT");
 		wTBT.safeTransferFrom(msg.sender, address(this), _wtbtAmount);
@@ -210,7 +213,10 @@ contract TBT is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable 
 		emit Transfer(address(0), msg.sender, getAmountByShares(_wtbtAmount));
 	}
 
-	// wrap TBT -> wTBT
+	/**
+	 * @dev unwrap wTBT to TBT
+	 * @param _amount the amount of wrapping
+	 */
 	function unwrap(uint256 _amount) external {
 		// equal shares
 		uint256 wtbtAmount = getSharesByAmount(_amount);
@@ -221,7 +227,9 @@ contract TBT is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable 
 		emit Transfer(msg.sender, address(0), _amount);
 	}
 
-	// wrap all TBT -> wTBT
+	/**
+	 * @dev unwrap all wTBT to TBT
+	 */
 	function unwrapAll() external {
 		uint256 userBalance = balanceOf(msg.sender);
 		uint256 shareAmount = sharesOf(msg.sender);

@@ -40,30 +40,37 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	uint256 public lastCheckpoint;
 	uint256 public capitalLowerBound;
 	IERC20Upgradeable public underlyingToken;
-	// Vault, used to pay USDC to user when redeem cToken.
+	// Vault, used to pay USDC to user when redeem cToken and manager fee.
 	address public vault;
-	// Treasury, used to receive USDC from user when buy cToken.
+	// Treasury, used to receive USDC from user when mint cToken.
 	address public treasury;
 	// Fee Collection, used to receive fee when mint or redeem.
 	address public fee_collection;
+	// Manager fee collection, used to receive manager fee.
+	address public manager_fee_collection;
 
-	// withdrawFeeRate: 0.1% => 100000 (10 ** 5)
-	// withdrawFeeRate: 10% => 10000000 (10 ** 7)
-	// withdrawFeeRate: 100% => 100000000 (10 ** 8)
-	// It's used when call withdrawUnderlyingToken method.
-	uint256 public withdrawFeeRate;
+	// redeemFeeRate: 0.1% => 100000 (10 ** 5)
+	// redeemFeeRate: 10% => 10000000 (10 ** 7)
+	// redeemFeeRate: 100% => 100000000 (10 ** 8)
+	// It's used when call redeemUnderlyingToken method.
+	uint256 public redeemFeeRate;
 
 	// mintFeeRate: 0.1% => 100000 (10 ** 5)
 	// mintFeeRate: 10% => 10000000 (10 ** 7)
 	// mintFeeRate: 100% => 100000000 (10 ** 8)
-	// It's used when call buy method.
+	// It's used when call mint method.
 	uint256 public mintFeeRate;
 
-	// Pending withdrawals, value is the USDC amount, user can claim whenever the vault has enough USDC.
-	mapping(address => uint256) public pendingWithdrawals;
+	// It's used when call realizeReward.
+	uint256 public managerFeeRate;
+
+	// Pending redeems, value is the USDC amount, user can claim whenever the vault has enough USDC.
+	mapping(address => uint256) public pendingRedeems;
 
 	// TODO: Can omit this, and calculate it from event.
-	uint256 public totalPendingWithdrawals;
+	uint256 public totalPendingRedeems;
+	// the claimable manager fee for protocol
+	uint256 public totalUnClaimManagerFee;
 
 	// targetAPR: 0.1% => 100000 (10 ** 5)
 	// targetAPR: 10% => 10000000 (10 ** 7)
@@ -74,26 +81,26 @@ contract wTBTPoolV2PermissionUpgradedMock is
 
 	// Max fee rates can't over then 1%
 	uint256 public constant maxMintFeeRate = 10 ** 6;
-	uint256 public constant maxWithdrawFeeRate = 10 ** 6;
+	uint256 public constant maxRedeemFeeRate = 10 ** 6;
 
-	// withdrawal index.
-	uint256 public withdrawalIndex;
+	// redeem index.
+	uint256 public redeemIndex;
 	// the time for redeem from bill.
 	uint256 public processPeriod;
 
-	struct WithdrawalDetail {
+	struct RedeemDetail {
 		uint256 id;
 		uint256 timestamp;
 		address user;
 		uint256 underlyingAmount;
-		// False not withdrawal, or True.
+		// False not redeem, or True.
 		bool isDone;
 	}
 
-	// Mapping from withdrawal index to WithdrawalDetail.
-	mapping(uint256 => WithdrawalDetail) public withdrawalDetails;
+	// Mapping from redeem index to RedeemDetail.
+	mapping(uint256 => RedeemDetail) public redeemDetails;
 
-	event WithdrawRequested(
+	event RedeemRequested(
 		uint256 id,
 		uint256 timestamp,
 		address indexed user,
@@ -101,9 +108,9 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		uint256 underlyingAmount
 	);
 
-	event WithdrawUnderlyingToken(address indexed user, uint256 amount, uint256 fee);
+	event RedeemUnderlyingToken(address indexed user, uint256 amount, uint256 fee);
 
-	// Treasury: When user buy cToken, treasury will receive USDC.
+	// Treasury: When user mint cToken, treasury will receive USDC.
 	// Vault: When user redeem cToken, vault will pay USDC.
 	// So should transfer money from treasury to vault, and let vault approve 10**70 to TBTPoolV2 Contract.
 	function initialize(
@@ -114,7 +121,8 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		uint256 _capitalLowerBound,
 		address _treasury,
 		address _vault,
-		address _fee_collection
+		address _fee_collection,
+		address _manager_fee_collection
 	) public initializer {
 		AccessControlUpgradeable.__AccessControl_init();
 		ERC20Upgradeable.__ERC20_init(name, symbol);
@@ -136,9 +144,16 @@ contract wTBTPoolV2PermissionUpgradedMock is
 
 		lastCheckpoint = block.timestamp;
 		capitalLowerBound = _capitalLowerBound;
+
+		require(_vault != address(0), "109");
+		require(_treasury != address(0), "109");
+		require(_fee_collection != address(0), "109");
+		require(_manager_fee_collection != address(0), "109");
+
 		vault = _vault;
 		treasury = _treasury;
 		fee_collection = _fee_collection;
+		manager_fee_collection = _manager_fee_collection;
 
 		// const, reduce risk for now.
 		// It's 10%.
@@ -166,41 +181,94 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	/*                                Pool Settings                               */
 	/* -------------------------------------------------------------------------- */
 
+	/**
+	 * @dev to set APR
+	 * @param _targetAPR the amount of APR. it should be multiply 10**6
+	 */
 	function setTargetAPR(uint256 _targetAPR) external onlyRole(POOL_MANAGER_ROLE) realizeReward {
 		require(_targetAPR <= maxAPR, "target apr should be less than max apr");
 		targetAPR = _targetAPR;
 	}
 
+	/**
+	 * @dev to set the period of processing
+	 * @param _processPeriod the period of processing. it's second.
+	 */
 	function setProcessPeriod(uint256 _processPeriod) external onlyRole(POOL_MANAGER_ROLE) {
 		processPeriod = _processPeriod;
 	}
 
-	// If lower bound is $1m USDC, the value should be 1,000,000 * 10**6
+	/**
+	 * @dev to set the capital lower bound
+	 * @param _capitalLowerBound the capital lower bound. If lower bound is $1m USDC, the value should be 1,000,000 * 10**6
+	 */
 	function setCapitalLowerBound(uint256 _capitalLowerBound) external onlyRole(POOL_MANAGER_ROLE) {
 		capitalLowerBound = _capitalLowerBound;
 	}
 
+	/**
+	 * @dev to set the vault
+	 * @param _vault the address of vault
+	 */
 	function setVault(address _vault) external onlyRole(ADMIN_ROLE) {
+		require(_vault != address(0), "109");
 		vault = _vault;
 	}
 
+	/**
+	 * @dev to set the treasury
+	 * @param _treasury the address of treasury
+	 */
 	function setTreasury(address _treasury) external onlyRole(ADMIN_ROLE) {
+		require(_treasury != address(0), "109");
 		treasury = _treasury;
 	}
 
+	/**
+	 * @dev to set the collection of fee
+	 * @param _fee_collection the address of collection
+	 */
 	function setFeeCollection(address _fee_collection) external onlyRole(ADMIN_ROLE) {
+		require(_fee_collection != address(0), "109");
 		fee_collection = _fee_collection;
 	}
 
+	/**
+	 * @dev to set the collection of manager fee
+	 * @param _manager_fee_collection the address of manager collection
+	 */
+	function setManagerFeeCollection(
+		address _manager_fee_collection
+	) external onlyRole(ADMIN_ROLE) {
+		require(_manager_fee_collection != address(0), "109");
+		manager_fee_collection = _manager_fee_collection;
+	}
+
+	/**
+	 * @dev to set the rate of mint fee
+	 * @param _mintFeeRate the rate. it should be multiply 10**6
+	 */
 	function setMintFeeRate(uint256 _mintFeeRate) external onlyRole(POOL_MANAGER_ROLE) {
 		require(_mintFeeRate <= maxMintFeeRate, "Mint fee rate should be less than 1%");
 		mintFeeRate = _mintFeeRate;
 	}
 
-	// TOOD: revisit the ACL. Currently is not elegant. (can't set global admin)
-	function setWithdrawFeeRate(uint256 _withdrawFeeRate) external onlyRole(POOL_MANAGER_ROLE) {
-		require(_withdrawFeeRate <= maxWithdrawFeeRate, "withdraw fee rate should be less than 1%");
-		withdrawFeeRate = _withdrawFeeRate;
+	/**
+	 * @dev to set the rate of redeem fee
+	 * @param _redeemFeeRate the rate. it should be multiply 10**6
+	 */
+	function setRedeemFeeRate(uint256 _redeemFeeRate) external onlyRole(POOL_MANAGER_ROLE) {
+		require(_redeemFeeRate <= maxRedeemFeeRate, "redeem fee rate should be less than 1%");
+		redeemFeeRate = _redeemFeeRate;
+	}
+
+	/**
+	 * @dev to set the rate of manager fee
+	 * @param _managerFeeRate the rate. it should be multiply 10**6
+	 */
+	function setManagerFeeRate(uint256 _managerFeeRate) external onlyRole(POOL_MANAGER_ROLE) {
+		require(_managerFeeRate <= FEE_COEFFICIENT, "manager fee rate should be less than 100%");
+		managerFeeRate = _managerFeeRate;
 	}
 
 	/* -------------------------- End of Pool Settings -------------------------- */
@@ -209,10 +277,17 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	/*                                   Getters                                  */
 	/* -------------------------------------------------------------------------- */
 
+	/**
+	 * @dev get total underly token amount
+	 */
 	function getTotalUnderlying() public view returns (uint256) {
 		return totalUnderlying.add(getRPS().mul(block.timestamp.sub(lastCheckpoint)));
 	}
 
+	/**
+	 * @dev get amount of cToken by underlying
+	 * @param _underlyingAmount the amount of underlying
+	 */
 	function getCTokenByUnderlying(uint256 _underlyingAmount) public view returns (uint256) {
 		if (cTokenTotalSupply == 0) {
 			return 0;
@@ -221,6 +296,10 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		}
 	}
 
+	/**
+	 * @dev get amount of underlying by cToken
+	 * @param _cTokenAmount the amount of cToken
+	 */
 	function getUnderlyingByCToken(uint256 _cTokenAmount) public view returns (uint256) {
 		if (cTokenTotalSupply == 0) {
 			return 0;
@@ -229,22 +308,34 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		}
 	}
 
+	/**
+	 * @dev get the multiplier of inital
+	 */
 	function getInitalCtokenToUnderlying() public view returns (uint256) {
 		return INITIAL_CTOKEN_TO_UNDERLYING;
 	}
 
+	/**
+	 * @dev the exchange rate of cToken
+	 */
 	function pricePerToken() external view returns (uint256) {
 		return getUnderlyingByCToken(1 ether);
 	}
 
+	/**
+	 * @dev revolutions per second
+	 */
 	function getRPS() public view returns (uint256) {
 		// TODO: If use totalUnderlying, then the interest also incurs interest, do we want to switch to principal?
-		// TODO: remove 10**8, and use constant.
 		return targetAPR.mul(totalUnderlying).div(365 days).div(APR_COEFFICIENT);
 	}
 
-	function getPendingWithdrawal(address account) public view returns (uint256) {
-		return pendingWithdrawals[account];
+	/**
+	 * @dev get the pending redeem from a give address
+	 * @param account target address
+	 */
+	function getPendingRedeem(address account) public view returns (uint256) {
+		return pendingRedeems[account];
 	}
 
 	/* ----------------------------- End of Getters ----------------------------- */
@@ -255,17 +346,28 @@ contract wTBTPoolV2PermissionUpgradedMock is
 
 	modifier realizeReward() {
 		if (cTokenTotalSupply != 0) {
-			totalUnderlying = totalUnderlying.add(
-				getRPS().mul(block.timestamp.sub(lastCheckpoint))
-			);
+			uint256 totalInterest = getRPS().mul(block.timestamp.sub(lastCheckpoint));
+			uint256 managerIncome = totalInterest.mul(managerFeeRate).div(FEE_COEFFICIENT);
+			totalUnderlying = totalUnderlying.add(totalInterest).sub(managerIncome);
+			totalUnClaimManagerFee = totalUnClaimManagerFee.add(managerIncome);
 		}
 		lastCheckpoint = block.timestamp;
 		_;
 	}
 
-	// @param amount: the amount of underlying token, 1 USDC = 10**6
-	// @param data: certificate data
-	function buy(uint256 amount) external whenNotPaused realizeReward {
+	/**
+	 * @dev claim protocol manager fee
+	 */
+	function claimManagerFee() external realizeReward {
+		underlyingToken.safeTransferFrom(vault, manager_fee_collection, totalUnClaimManagerFee);
+		totalUnClaimManagerFee = 0;
+	}
+
+	/**
+	 * @dev mint wTBT
+	 * @param amount the amount of underlying token, 1 USDC = 10**6
+	 */
+	function mint(uint256 amount) external whenNotPaused realizeReward {
 		// calculate fee
 		uint256 feeAmount = amount.mul(mintFeeRate).div(FEE_COEFFICIENT);
 		uint256 amountAfterFee = amount.sub(feeAmount);
@@ -288,8 +390,11 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		totalUnderlying = totalUnderlying.add(amount);
 	}
 
-	// @param amount: the amount of cToken, 1 cToken = 10**18, which eaquals to 1 USDC (if not interest).
-	function sell(uint256 amount) external whenNotPaused realizeReward {
+	/**
+	 * @dev redeem wTBT
+	 * @param amount the amount of cToken, 1 cToken = 10**18, which eaquals to 1 USDC (if not interest).
+	 */
+	function redeem(uint256 amount) external whenNotPaused realizeReward {
 		require(amount <= cTokenBalances[msg.sender], "100");
 		require(totalUnderlying >= 0, "101");
 		require(cTokenTotalSupply > 0, "104");
@@ -301,46 +406,44 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		_burn(msg.sender, amount);
 		totalUnderlying = totalUnderlying.sub(underlyingAmount);
 
-		withdrawalIndex++;
-		withdrawalDetails[withdrawalIndex] = WithdrawalDetail({
-			id: withdrawalIndex,
+		redeemIndex++;
+		redeemDetails[redeemIndex] = RedeemDetail({
+			id: redeemIndex,
 			timestamp: block.timestamp,
 			user: msg.sender,
 			underlyingAmount: underlyingAmount,
 			isDone: false
 		});
 
-		// Instead of transferring underlying token to user, we record the pending withdrawal amount.
-		pendingWithdrawals[msg.sender] = pendingWithdrawals[msg.sender].add(underlyingAmount);
+		// Instead of transferring underlying token to user, we record the pending redeem amount.
+		pendingRedeems[msg.sender] = pendingRedeems[msg.sender].add(underlyingAmount);
 
-		totalPendingWithdrawals = totalPendingWithdrawals.add(underlyingAmount);
+		totalPendingRedeems = totalPendingRedeems.add(underlyingAmount);
 
-		emit WithdrawRequested(
-			withdrawalIndex,
-			block.timestamp,
-			msg.sender,
-			amount,
-			underlyingAmount
-		);
+		emit RedeemRequested(redeemIndex, block.timestamp, msg.sender, amount, underlyingAmount);
 	}
 
-	function withdrawUnderlyingTokenById(uint256 _id) external whenNotPaused {
-		require(withdrawalDetails[_id].user == msg.sender, "105");
-		require(withdrawalDetails[_id].isDone == false, "106");
-		require(underlyingToken.balanceOf(vault) >= withdrawalDetails[_id].underlyingAmount, "107");
-		require(withdrawalDetails[_id].timestamp + processPeriod <= block.timestamp, "108");
+	/**
+	 * @dev redeem underlying token
+	 * @param _id the id of redeem details
+	 */
+	function redeemUnderlyingTokenById(uint256 _id) external whenNotPaused {
+		require(redeemDetails[_id].user == msg.sender, "105");
+		require(redeemDetails[_id].isDone == false, "106");
+		require(underlyingToken.balanceOf(vault) >= redeemDetails[_id].underlyingAmount, "107");
+		require(redeemDetails[_id].timestamp + processPeriod <= block.timestamp, "108");
 
-		uint256 amount = withdrawalDetails[_id].underlyingAmount;
+		uint256 amount = redeemDetails[_id].underlyingAmount;
 
-		withdrawalDetails[_id].isDone = true;
+		redeemDetails[_id].isDone = true;
 
-		pendingWithdrawals[msg.sender] = pendingWithdrawals[msg.sender].sub(amount);
-		totalPendingWithdrawals = totalPendingWithdrawals.sub(amount);
-		uint256 feeAmount = amount.mul(withdrawFeeRate).div(FEE_COEFFICIENT);
+		pendingRedeems[msg.sender] = pendingRedeems[msg.sender].sub(amount);
+		totalPendingRedeems = totalPendingRedeems.sub(amount);
+		uint256 feeAmount = amount.mul(redeemFeeRate).div(FEE_COEFFICIENT);
 		uint256 amountAfterFee = amount.sub(feeAmount);
 		underlyingToken.safeTransferFrom(vault, msg.sender, amountAfterFee);
 		underlyingToken.safeTransferFrom(vault, fee_collection, feeAmount);
-		emit WithdrawUnderlyingToken(msg.sender, amount, amountAfterFee);
+		emit RedeemUnderlyingToken(msg.sender, amount, amountAfterFee);
 	}
 
 	/* ---------------------------- End of Core Logic --------------------------- */

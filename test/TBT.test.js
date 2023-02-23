@@ -26,6 +26,7 @@ describe("TBT Contract", async () => {
 	let treasury
 	let vault
 	let fee_collection
+	let manager_fee_collection
 
 	let admin
 	let poolManager
@@ -54,6 +55,7 @@ describe("TBT Contract", async () => {
 			admin,
 			poolManager,
 			fee_collection,
+			manager_fee_collection,
 		] = await ethers.getSigners()
 		now = (await ethers.provider.getBlock("latest")).timestamp
 		const ERC20Token = await ethers.getContractFactory("ERC20Token")
@@ -67,7 +69,7 @@ describe("TBT Contract", async () => {
 
 		TBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")
 		tbtPool = await upgrades.deployProxy(TBTPool, [
-			"TBT Pool 1",
+			"TBT Pool",
 			"wTBT",
 			admin.address,
 			usdcToken.address,
@@ -75,6 +77,7 @@ describe("TBT Contract", async () => {
 			vault.address,
 			treasury.address,
 			fee_collection.address,
+			manager_fee_collection.address,
 		])
 		await tbtPool.deployed()
 

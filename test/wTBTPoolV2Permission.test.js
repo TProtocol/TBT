@@ -105,6 +105,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 	let treasury
 	let vault
 	let fee_collection
+	let manager_fee_collection
 
 	let admin
 	let poolManager
@@ -131,6 +132,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			admin,
 			poolManager,
 			fee_collection,
+			manager_fee_collection,
 		] = await ethers.getSigners()
 		now = (await ethers.provider.getBlock("latest")).timestamp
 		const ERC20Token = await ethers.getContractFactory("ERC20Token")
@@ -152,6 +154,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			vault.address,
 			treasury.address,
 			fee_collection.address,
+			manager_fee_collection.address,
 		])
 		await wtbtPool.deployed()
 		// wtbtPool = await wTBTPool.connect(deployer).deploy(
@@ -290,13 +293,13 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await mineBlockWithTimestamp(ethers.provider, now)
 			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
 			await redeem(investor, amountToRedeem)
-			const pendingWithdrawal = await wtbtPool
+			const pendingRedeem = await wtbtPool
 				.connect(investor)
-				.getPendingWithdrawal(investor.address)
+				.getPendingRedeem(investor.address)
 
 			const expected = amountToMint.mul(108).div(100)
 			// with 0.01% tolorence;
-			expect(pendingWithdrawal).to.be.within(
+			expect(pendingRedeem).to.be.within(
 				expected.mul(9999).div(10000),
 				expected.mul(10001).div(10000)
 			)
@@ -324,17 +327,17 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				.cTokenBalances(investor2.address)
 			await redeem(investor2, amountToRedeem2)
 
-			const pendingWithdrawal = await wtbtPool.getPendingWithdrawal(investor.address)
-			const pendingWithdrawal2 = await wtbtPool.getPendingWithdrawal(investor2.address)
-			expect(pendingWithdrawal).to.be.within(
-				pendingWithdrawal2.mul(9999).div(10000),
-				pendingWithdrawal2.mul(10001).div(10000)
+			const pendingRedeem = await wtbtPool.getPendingRedeem(investor.address)
+			const pendingRedeem2 = await wtbtPool.getPendingRedeem(investor2.address)
+			expect(pendingRedeem).to.be.within(
+				pendingRedeem2.mul(9999).div(10000),
+				pendingRedeem2.mul(10001).div(10000)
 			)
 
-			const expectedWithdrawal = amountToMint.mul(108).div(100)
-			expect(pendingWithdrawal).to.be.within(
-				expectedWithdrawal.mul(9999).div(10000),
-				expectedWithdrawal.mul(10001).div(10000)
+			const expectedRedeem = amountToMint.mul(108).div(100)
+			expect(pendingRedeem).to.be.within(
+				expectedRedeem.mul(9999).div(10000),
+				expectedRedeem.mul(10001).div(10000)
 			)
 		})
 
@@ -378,11 +381,11 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				.getUnderlyingByCToken(amountToRedeem)
 			await redeem(investor, amountToRedeem)
 
-			const orderId = await wtbtPool.withdrawalIndex()
+			const orderId = await wtbtPool.redeemIndex()
 
-			const pendingWithdrawal = (await wtbtPool.connect(investor).withdrawalDetails(orderId))
+			const pendingRedeem = (await wtbtPool.connect(investor).redeemDetails(orderId))
 				.underlyingAmount
-			await expect(getUnderlyingByCToken.toString()).to.be.eq(pendingWithdrawal.toString())
+			await expect(getUnderlyingByCToken.toString()).to.be.eq(pendingRedeem.toString())
 		})
 
 		it("Should be token value always > 1", async () => {
@@ -405,7 +408,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		it("Should not be able to change pool settings without POOL_MANAGER_ROLE", async () => {
 			await expect(wtbtPool.connect(poolManager).setTargetAPR(1000000)).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setMintFeeRate(1)).to.be.reverted
-			await expect(wtbtPool.connect(poolManager).setWithdrawFeeRate(1)).to.be.reverted
+			await expect(wtbtPool.connect(poolManager).setRedeemFeeRate(1)).to.be.reverted
 			await expect(
 				wtbtPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))
 			).to.be.reverted
@@ -413,13 +416,18 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await expect(wtbtPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setFeeCollection(fee_collection.address)).to
 				.be.reverted
+			await expect(
+				wtbtPool
+					.connect(poolManager)
+					.setManagerFeeCollection(manager_fee_collection.address)
+			).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted
 		})
 
 		it("Should not be able to change pool settings without ADMIN_ROLE", async () => {
 			await expect(wtbtPool.connect(poolManager).setTargetAPR(1000000)).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setMintFeeRate(1)).to.be.reverted
-			await expect(wtbtPool.connect(poolManager).setWithdrawFeeRate(1)).to.be.reverted
+			await expect(wtbtPool.connect(poolManager).setRedeemFeeRate(1)).to.be.reverted
 			await expect(
 				wtbtPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))
 			).to.be.reverted
@@ -445,7 +453,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await wtbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address)
 			await wtbtPool.connect(poolManager).setTargetAPR(1000000)
 			await wtbtPool.connect(poolManager).setMintFeeRate(1)
-			await wtbtPool.connect(poolManager).setWithdrawFeeRate(1)
+			await wtbtPool.connect(poolManager).setRedeemFeeRate(1)
 			await wtbtPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))
 			await wtbtPool.connect(poolManager).setProcessPeriod(100)
 		})
@@ -454,6 +462,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await wtbtPool.connect(admin).setVault(vault.address)
 			await wtbtPool.connect(admin).setTreasury(treasury.address)
 			await wtbtPool.connect(admin).setFeeCollection(fee_collection.address)
+			await wtbtPool.connect(admin).setManagerFeeCollection(manager_fee_collection.address)
 		})
 
 		it("Should not be able to change pause settings without ADMIN_ROLE", async () => {
@@ -466,7 +475,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		})
 	})
 
-	describe("Withdrawal", async () => {
+	describe("Redeem", async () => {
 		beforeEach(async () => {
 			const POOL_MANAGER_ROLE = await wtbtPool.POOL_MANAGER_ROLE()
 			await wtbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address)
@@ -478,38 +487,38 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await wtbtPool.connect(investor).redeem(amountToRedeem)
 		})
 
-		it("Should be able to withdrawal", async () => {
+		it("Should be able to redeem", async () => {
 			now = now + ONE_WEEK
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const orderId = await wtbtPool.withdrawalIndex()
-			await wtbtPool.connect(investor).withdrawUnderlyingTokenById(orderId)
+			const orderId = await wtbtPool.redeemIndex()
+			await wtbtPool.connect(investor).redeemUnderlyingTokenById(orderId)
 		})
 
-		it("Should be not able to withdrawal with other account", async () => {
+		it("Should be not able to redeem with other account", async () => {
 			now = now + ONE_WEEK
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const orderId = await wtbtPool.withdrawalIndex()
+			const orderId = await wtbtPool.redeemIndex()
 			await expect(
-				wtbtPool.connect(investor2).withdrawUnderlyingTokenById(orderId)
+				wtbtPool.connect(investor2).redeemUnderlyingTokenById(orderId)
 			).to.be.revertedWith("105")
 		})
 
-		it("Should be not able to withdrawal when order is done", async () => {
+		it("Should be not able to redeem when order is done", async () => {
 			now = now + ONE_WEEK
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const orderId = await wtbtPool.withdrawalIndex()
-			await wtbtPool.connect(investor).withdrawUnderlyingTokenById(orderId)
+			const orderId = await wtbtPool.redeemIndex()
+			await wtbtPool.connect(investor).redeemUnderlyingTokenById(orderId)
 			await expect(
-				wtbtPool.connect(investor).withdrawUnderlyingTokenById(orderId)
+				wtbtPool.connect(investor).redeemUnderlyingTokenById(orderId)
 			).to.be.revertedWith("106")
 		})
 
-		it("Should be not able to withdrawal when it's not yet been processed", async () => {
+		it("Should be not able to redeem when it's not yet been processed", async () => {
 			now = now + ONE_HOUR
 			await mineBlockWithTimestamp(ethers.provider, now)
-			const orderId = await wtbtPool.withdrawalIndex()
+			const orderId = await wtbtPool.redeemIndex()
 			await expect(
-				wtbtPool.connect(investor).withdrawUnderlyingTokenById(orderId)
+				wtbtPool.connect(investor).redeemUnderlyingTokenById(orderId)
 			).to.be.revertedWith("108")
 		})
 	})
@@ -521,12 +530,17 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await wtbtPool.connect(poolManager).setProcessPeriod(0)
 			// set 1% fee
 			await wtbtPool.connect(poolManager).setMintFeeRate(1000000)
-			await wtbtPool.connect(poolManager).setWithdrawFeeRate(1000000)
+			await wtbtPool.connect(poolManager).setRedeemFeeRate(1000000)
+			// 100% manager fee
 		})
 
 		it("Should not be able to change fee more then 1%", async () => {
 			await expect(wtbtPool.connect(poolManager).setMintFeeRate(10000000)).to.be.reverted
-			await expect(wtbtPool.connect(poolManager).setWithdrawFeeRate(10000000)).to.be.reverted
+			await expect(wtbtPool.connect(poolManager).setRedeemFeeRate(10000000)).to.be.reverted
+		})
+
+		it("Should not be able to change manager fee more then 100%", async () => {
+			await expect(wtbtPool.connect(poolManager).setManagerFeeRate(100000001)).to.be.reverted
 		})
 
 		it("Should be able to mint with fee", async () => {
@@ -554,21 +568,47 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
 			await wtbtPool.connect(investor).redeem(amountToRedeem)
 
-			const orderId = await wtbtPool.withdrawalIndex()
+			const orderId = await wtbtPool.redeemIndex()
 
-			const pendingWithdrawal = (await wtbtPool.connect(investor).withdrawalDetails(orderId))
+			const pendingRedeem = (await wtbtPool.connect(investor).redeemDetails(orderId))
 				.underlyingAmount
-			await wtbtPool.connect(investor).withdrawUnderlyingTokenById(orderId)
+			await wtbtPool.connect(investor).redeemUnderlyingTokenById(orderId)
 			// equal 99 * 0.99
-			const withdrawUnderlyingAmount = pendingWithdrawal.mul(99000000).div(100000000)
+			const redeemUnderlyingAmount = pendingRedeem.mul(99000000).div(100000000)
 			expect(await usdcToken.balanceOf(investor.address)).to.equal(
-				beforeInvestorBalance.add(withdrawUnderlyingAmount)
+				beforeInvestorBalance.add(redeemUnderlyingAmount)
 			)
 
 			const afterFeeCollectBalance = await usdcToken.balanceOf(fee_collection.address)
 			expect(afterFeeCollectBalance).to.equal(
-				beforeFeeCollectBalance.add(pendingWithdrawal.sub(withdrawUnderlyingAmount))
+				beforeFeeCollectBalance.add(pendingRedeem.sub(redeemUnderlyingAmount))
 			)
+		})
+
+		it("Should be able to claim correct 10% manager fee", async () => {
+			const timepass = ONE_YEAR
+			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
+			const amountToMint = ethers.utils.parseUnits("1000000", 6)
+
+			const managerFeeRate = ethers.utils.parseUnits("10", 6) // 10% manager fee
+			await wtbtPool.connect(admin).setManagerFeeRate(managerFeeRate)
+			await wtbtPool.connect(poolManager).setMintFeeRate(0)
+
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await mint(investor, amountToMint)
+
+			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
+
+			now = (await ethers.provider.getBlock("latest")).timestamp + timepass
+			await mineBlockWithTimestamp(ethers.provider, now)
+
+			const beforeTotalUnderlying = await wtbtPool.getTotalUnderlying()
+			await wtbtPool.connect(admin).setTargetAPR(0)
+			const unclaimFee = await wtbtPool.totalUnClaimManagerFee()
+			const income = beforeTotalUnderlying.sub(amountToMint)
+			// ~= 10%
+			expect(unclaimFee).to.be.gte(income.mul(99000).div(1000000))
+			expect(unclaimFee).to.be.lte(income.mul(100100).div(1000000))
 		})
 	})
 

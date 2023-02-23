@@ -11,6 +11,7 @@
 - 106: (withdrawUnderlyingTokenByID) the withdrawal order is done.
 - 107: (withdrawUnderlyingTokenByID) the vault does not have enough underlying token to withdraw.
 - 108: (withdrawUnderlyingTokenByID) the withdrawal order is not ready for withdral.
+- 109: (initialize) the address is 0x0
 
 ## Development Deoploy & Verify
 For Goerli Testnet
