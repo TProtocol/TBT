@@ -97,18 +97,12 @@ describe("wTBTPool V2 Permission Contract", async () => {
 	let usdcToken
 	let clockMock
 
-	let investor
-	let investor2
-	let investor3
+	let investor, investor2, investor3
 	let deployer
 	let controller
-	let treasury
-	let vault
-	let fee_collection
-	let manager_fee_collection
+	let treasury, vault, fee_collection, manager_fee_collection
 
-	let admin
-	let poolManager
+	let admin, poolManager, aprManager
 
 	let now
 
@@ -131,6 +125,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			deployer,
 			admin,
 			poolManager,
+			aprManager,
 			fee_collection,
 			manager_fee_collection,
 		] = await ethers.getSigners()
@@ -451,11 +446,16 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		it("Should be able to change pool settings with POOL_MANAGER_ROLE", async () => {
 			const POOL_MANAGER_ROLE = await wtbtPool.POOL_MANAGER_ROLE()
 			await wtbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address)
-			await wtbtPool.connect(poolManager).setTargetAPR(1000000)
 			await wtbtPool.connect(poolManager).setMintFeeRate(1)
 			await wtbtPool.connect(poolManager).setRedeemFeeRate(1)
 			await wtbtPool.connect(poolManager).setCapitalLowerBound(BigNumber.from(10).pow(12))
 			await wtbtPool.connect(poolManager).setProcessPeriod(100)
+		})
+
+		it("Should be able to change target apr with APR_MANAGER_ROLE", async () => {
+			const APR_MANAGER_ROLE = await wtbtPool.APR_MANAGER_ROLE()
+			await wtbtPool.connect(admin).grantRole(APR_MANAGER_ROLE, aprManager.address)
+			await wtbtPool.connect(aprManager).setTargetAPR(1000000)
 		})
 
 		it("Should be able to change pool settings with ADMIN_ROLE", async () => {
@@ -526,7 +526,9 @@ describe("wTBTPool V2 Permission Contract", async () => {
 	describe("FEE", async () => {
 		beforeEach(async () => {
 			const POOL_MANAGER_ROLE = await wtbtPool.POOL_MANAGER_ROLE()
+			const APR_MANAGER_ROLE = await wtbtPool.APR_MANAGER_ROLE()
 			await wtbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address)
+			await wtbtPool.connect(admin).grantRole(APR_MANAGER_ROLE, aprManager.address)
 			await wtbtPool.connect(poolManager).setProcessPeriod(0)
 			// set 1% fee
 			await wtbtPool.connect(poolManager).setMintFeeRate(1000000)
@@ -606,7 +608,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 			const beforeTotalUnderlying = await wtbtPool.getTotalUnderlying()
 			await wtbtPool.connect(admin).setTargetAPR(0)
-			const unclaimFee = await wtbtPool.totalUnClaimManagerFee()
+			const unclaimFee = await wtbtPool.totalUnclaimManagerFee()
 			const income = beforeTotalUnderlying.sub(amountToMint)
 			// ~= 10%
 			expect(unclaimFee).to.be.gte(income.mul(99000).div(1000000))
@@ -616,8 +618,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 	describe("APR", async () => {
 		beforeEach(async () => {
-			const POOL_MANAGER_ROLE = await wtbtPool.POOL_MANAGER_ROLE()
-			await wtbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address)
+			const APR_MANAGER_ROLE = await wtbtPool.APR_MANAGER_ROLE()
+			await wtbtPool.connect(admin).grantRole(APR_MANAGER_ROLE, poolManager.address)
 		})
 
 		it("Should not be able to change apr more then 10%", async () => {

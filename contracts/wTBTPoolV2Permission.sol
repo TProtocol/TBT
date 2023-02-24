@@ -24,6 +24,7 @@ contract wTBTPoolV2Permission is
 
 	bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 	bytes32 public constant POOL_MANAGER_ROLE = keccak256("POOL_MANAGER_ROLE");
+	bytes32 public constant APR_MANAGER_ROLE = keccak256("APR_MANAGER_ROLE");
 
 	// It's used to calculate the interest base.
 	uint256 public constant APR_COEFFICIENT = 10 ** 8;
@@ -45,9 +46,11 @@ contract wTBTPoolV2Permission is
 	// Treasury, used to receive USDC from user when mint cToken.
 	address public treasury;
 	// Fee Collection, used to receive fee when mint or redeem.
-	address public fee_collection;
+	address public feeCollection;
 	// Manager fee collection, used to receive manager fee.
-	address public manager_fee_collection;
+	address public managerFeeCollection;
+	// mp deposit address
+	address public mpDeposit;
 
 	// redeemFeeRate: 0.1% => 100000 (10 ** 5)
 	// redeemFeeRate: 10% => 10000000 (10 ** 7)
@@ -70,7 +73,7 @@ contract wTBTPoolV2Permission is
 	// TODO: Can omit this, and calculate it from event.
 	uint256 public totalPendingRedeems;
 	// the claimable manager fee for protocol
-	uint256 public totalUnClaimManagerFee;
+	uint256 public totalUnclaimManagerFee;
 
 	// targetAPR: 0.1% => 100000 (10 ** 5)
 	// targetAPR: 10% => 10000000 (10 ** 7)
@@ -121,8 +124,8 @@ contract wTBTPoolV2Permission is
 		uint256 _capitalLowerBound,
 		address _treasury,
 		address _vault,
-		address _fee_collection,
-		address _manager_fee_collection
+		address _feeCollection,
+		address _managerFeeCollection
 	) public initializer {
 		AccessControlUpgradeable.__AccessControl_init();
 		ERC20Upgradeable.__ERC20_init(name, symbol);
@@ -131,10 +134,12 @@ contract wTBTPoolV2Permission is
 
 		// TODO: revisit.
 		_setRoleAdmin(POOL_MANAGER_ROLE, ADMIN_ROLE);
+		_setRoleAdmin(APR_MANAGER_ROLE, ADMIN_ROLE);
 
 		require(admin != address(0), "103");
 		_setupRole(ADMIN_ROLE, admin);
 		_setupRole(POOL_MANAGER_ROLE, admin);
+		_setupRole(APR_MANAGER_ROLE, admin);
 
 		underlyingToken = _underlyingToken;
 
@@ -147,13 +152,13 @@ contract wTBTPoolV2Permission is
 
 		require(_vault != address(0), "109");
 		require(_treasury != address(0), "109");
-		require(_fee_collection != address(0), "109");
-		require(_manager_fee_collection != address(0), "109");
+		require(_feeCollection != address(0), "109");
+		require(_managerFeeCollection != address(0), "109");
 
 		vault = _vault;
 		treasury = _treasury;
-		fee_collection = _fee_collection;
-		manager_fee_collection = _manager_fee_collection;
+		feeCollection = _feeCollection;
+		managerFeeCollection = _managerFeeCollection;
 
 		// const, reduce risk for now.
 		// It's 10%.
@@ -185,7 +190,7 @@ contract wTBTPoolV2Permission is
 	 * @dev to set APR
 	 * @param _targetAPR the amount of APR. it should be multiply 10**6
 	 */
-	function setTargetAPR(uint256 _targetAPR) external onlyRole(POOL_MANAGER_ROLE) realizeReward {
+	function setTargetAPR(uint256 _targetAPR) external onlyRole(APR_MANAGER_ROLE) realizeReward {
 		require(_targetAPR <= maxAPR, "target apr should be less than max apr");
 		targetAPR = _targetAPR;
 	}
@@ -226,22 +231,20 @@ contract wTBTPoolV2Permission is
 
 	/**
 	 * @dev to set the collection of fee
-	 * @param _fee_collection the address of collection
+	 * @param _feeCollection the address of collection
 	 */
-	function setFeeCollection(address _fee_collection) external onlyRole(ADMIN_ROLE) {
-		require(_fee_collection != address(0), "109");
-		fee_collection = _fee_collection;
+	function setFeeCollection(address _feeCollection) external onlyRole(ADMIN_ROLE) {
+		require(_feeCollection != address(0), "109");
+		feeCollection = _feeCollection;
 	}
 
 	/**
 	 * @dev to set the collection of manager fee
-	 * @param _manager_fee_collection the address of manager collection
+	 * @param _managerFeeCollection the address of manager collection
 	 */
-	function setManagerFeeCollection(
-		address _manager_fee_collection
-	) external onlyRole(ADMIN_ROLE) {
-		require(_manager_fee_collection != address(0), "109");
-		manager_fee_collection = _manager_fee_collection;
+	function setManagerFeeCollection(address _managerFeeCollection) external onlyRole(ADMIN_ROLE) {
+		require(_managerFeeCollection != address(0), "109");
+		managerFeeCollection = _managerFeeCollection;
 	}
 
 	/**
@@ -266,7 +269,9 @@ contract wTBTPoolV2Permission is
 	 * @dev to set the rate of manager fee
 	 * @param _managerFeeRate the rate. it should be multiply 10**6
 	 */
-	function setManagerFeeRate(uint256 _managerFeeRate) external onlyRole(POOL_MANAGER_ROLE) {
+	function setManagerFeeRate(
+		uint256 _managerFeeRate
+	) external onlyRole(POOL_MANAGER_ROLE) realizeReward {
 		require(_managerFeeRate <= FEE_COEFFICIENT, "manager fee rate should be less than 100%");
 		managerFeeRate = _managerFeeRate;
 	}
@@ -349,7 +354,7 @@ contract wTBTPoolV2Permission is
 			uint256 totalInterest = getRPS().mul(block.timestamp.sub(lastCheckpoint));
 			uint256 managerIncome = totalInterest.mul(managerFeeRate).div(FEE_COEFFICIENT);
 			totalUnderlying = totalUnderlying.add(totalInterest).sub(managerIncome);
-			totalUnClaimManagerFee = totalUnClaimManagerFee.add(managerIncome);
+			totalUnclaimManagerFee = totalUnclaimManagerFee.add(managerIncome);
 		}
 		lastCheckpoint = block.timestamp;
 		_;
@@ -359,8 +364,8 @@ contract wTBTPoolV2Permission is
 	 * @dev claim protocol manager fee
 	 */
 	function claimManagerFee() external realizeReward {
-		underlyingToken.safeTransferFrom(vault, manager_fee_collection, totalUnClaimManagerFee);
-		totalUnClaimManagerFee = 0;
+		underlyingToken.safeTransferFrom(vault, managerFeeCollection, totalUnclaimManagerFee);
+		totalUnclaimManagerFee = 0;
 	}
 
 	/**
@@ -384,7 +389,7 @@ contract wTBTPoolV2Permission is
 		_mint(msg.sender, amountAfterFee);
 
 		if (feeAmount != 0) {
-			_mint(fee_collection, feeAmount);
+			_mint(feeCollection, feeAmount);
 		}
 
 		totalUnderlying = totalUnderlying.add(amount);
@@ -442,7 +447,7 @@ contract wTBTPoolV2Permission is
 		uint256 feeAmount = amount.mul(redeemFeeRate).div(FEE_COEFFICIENT);
 		uint256 amountAfterFee = amount.sub(feeAmount);
 		underlyingToken.safeTransferFrom(vault, msg.sender, amountAfterFee);
-		underlyingToken.safeTransferFrom(vault, fee_collection, feeAmount);
+		underlyingToken.safeTransferFrom(vault, feeCollection, feeAmount);
 		emit RedeemUnderlyingToken(msg.sender, amount, amountAfterFee);
 	}
 
