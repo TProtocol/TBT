@@ -151,8 +151,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			admin.address,
 			usdcToken.address,
 			0,
-			vault.address,
 			treasury.address,
+			vault.address,
 			fee_collection.address,
 			manager_fee_collection.address,
 		])
@@ -171,9 +171,9 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		// );
 		await usdcToken
 			.connect(deployer)
-			.mint(treasury.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
+			.mint(vault.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
 		await usdcToken
-			.connect(treasury)
+			.connect(vault)
 			.approve(wtbtPool.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
 
 		const ClockMock = await ethers.getContractFactory("ClockMock")
@@ -552,9 +552,11 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				ethers.utils.parseUnits("99", 18)
 			)
 			// collect fee
-			expect(await usdcToken.balanceOf(fee_collection.address)).to.equal(
-				ethers.utils.parseUnits("1", 6)
+			expect(await wtbtPool.balanceOf(fee_collection.address)).to.equal(
+				ethers.utils.parseUnits("1", 18)
 			)
+
+			expect(await usdcToken.balanceOf(treasury.address)).to.equal(amountToMint)
 		})
 
 		it("Should be able to redeem with fee", async () => {

@@ -368,16 +368,7 @@ contract wTBTPoolV2Permission is
 	 * @param amount the amount of underlying token, 1 USDC = 10**6
 	 */
 	function mint(uint256 amount) external whenNotPaused realizeReward {
-		// calculate fee
-		uint256 feeAmount = amount.mul(mintFeeRate).div(FEE_COEFFICIENT);
-		uint256 amountAfterFee = amount.sub(feeAmount);
-		underlyingToken.safeTransferFrom(msg.sender, treasury, amountAfterFee);
-		// collect fee
-		if (feeAmount != 0) {
-			underlyingToken.safeTransferFrom(msg.sender, fee_collection, feeAmount);
-		}
-
-		amount = amountAfterFee;
+		underlyingToken.safeTransferFrom(msg.sender, treasury, amount);
 
 		uint256 cTokenAmount;
 		if (cTokenTotalSupply == 0 || totalUnderlying == 0) {
@@ -386,7 +377,16 @@ contract wTBTPoolV2Permission is
 			cTokenAmount = amount.mul(cTokenTotalSupply).div(totalUnderlying);
 		}
 
-		_mint(msg.sender, cTokenAmount);
+		// calculate fee with wtbt
+		uint256 feeAmount = cTokenAmount.mul(mintFeeRate).div(FEE_COEFFICIENT);
+		uint256 amountAfterFee = cTokenAmount.sub(feeAmount);
+
+		_mint(msg.sender, amountAfterFee);
+
+		if (feeAmount != 0) {
+			_mint(fee_collection, feeAmount);
+		}
+
 		totalUnderlying = totalUnderlying.add(amount);
 	}
 
