@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -17,7 +18,8 @@ contract wTBTPoolV2Permission is
 	DomainAware,
 	AccessControlUpgradeable,
 	ERC20Upgradeable,
-	PausableUpgradeable
+	PausableUpgradeable,
+	ReentrancyGuardUpgradeable
 {
 	using SafeMathUpgradeable for uint256;
 	using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -45,10 +47,10 @@ contract wTBTPoolV2Permission is
 	address public vault;
 	// Treasury, used to receive USDC from user when mint cToken.
 	address public treasury;
-	// Fee Collection, used to receive fee when mint or redeem.
-	address public feeCollection;
-	// Manager fee collection, used to receive manager fee.
-	address public managerFeeCollection;
+	// Fee Collector, used to receive fee when mint or redeem.
+	address public feeCollector;
+	// Manager fee collector, used to receive manager fee.
+	address public managerFeeCollector;
 	// mp deposit address
 	address public mpDeposit;
 
@@ -124,15 +126,17 @@ contract wTBTPoolV2Permission is
 		uint256 _capitalLowerBound,
 		address _treasury,
 		address _vault,
-		address _feeCollection,
-		address _managerFeeCollection
+		address _feeCollector,
+		address _managerFeeCollector
 	) public initializer {
-		AccessControlUpgradeable.__AccessControl_init();
-		ERC20Upgradeable.__ERC20_init(name, symbol);
-		PausableUpgradeable.__Pausable_init();
-		DomainAware.__DomainAware_init();
+		__AccessControl_init();
+		__ERC20_init(name, symbol);
+		__Pausable_init();
+		__ReentrancyGuard_init();
+		__DomainAware_init();
 
 		// TODO: revisit.
+		_setupRole(DEFAULT_ADMIN_ROLE, admin);
 		_setRoleAdmin(POOL_MANAGER_ROLE, ADMIN_ROLE);
 		_setRoleAdmin(APR_MANAGER_ROLE, ADMIN_ROLE);
 
@@ -152,13 +156,13 @@ contract wTBTPoolV2Permission is
 
 		require(_vault != address(0), "109");
 		require(_treasury != address(0), "109");
-		require(_feeCollection != address(0), "109");
-		require(_managerFeeCollection != address(0), "109");
+		require(_feeCollector != address(0), "109");
+		require(_managerFeeCollector != address(0), "109");
 
 		vault = _vault;
 		treasury = _treasury;
-		feeCollection = _feeCollection;
-		managerFeeCollection = _managerFeeCollection;
+		feeCollector = _feeCollector;
+		managerFeeCollector = _managerFeeCollector;
 
 		// const, reduce risk for now.
 		// It's 10%.
@@ -230,21 +234,21 @@ contract wTBTPoolV2Permission is
 	}
 
 	/**
-	 * @dev to set the collection of fee
-	 * @param _feeCollection the address of collection
+	 * @dev to set the collector of fee
+	 * @param _feeCollector the address of collector
 	 */
-	function setFeeCollection(address _feeCollection) external onlyRole(ADMIN_ROLE) {
-		require(_feeCollection != address(0), "109");
-		feeCollection = _feeCollection;
+	function setFeeCollector(address _feeCollector) external onlyRole(ADMIN_ROLE) {
+		require(_feeCollector != address(0), "109");
+		feeCollector = _feeCollector;
 	}
 
 	/**
-	 * @dev to set the collection of manager fee
-	 * @param _managerFeeCollection the address of manager collection
+	 * @dev to set the collector of manager fee
+	 * @param _managerFeeCollector the address of manager collector
 	 */
-	function setManagerFeeCollection(address _managerFeeCollection) external onlyRole(ADMIN_ROLE) {
-		require(_managerFeeCollection != address(0), "109");
-		managerFeeCollection = _managerFeeCollection;
+	function setManagerFeeCollector(address _managerFeeCollector) external onlyRole(ADMIN_ROLE) {
+		require(_managerFeeCollector != address(0), "109");
+		managerFeeCollector = _managerFeeCollector;
 	}
 
 	/**
@@ -363,8 +367,8 @@ contract wTBTPoolV2Permission is
 	/**
 	 * @dev claim protocol manager fee
 	 */
-	function claimManagerFee() external realizeReward {
-		underlyingToken.safeTransferFrom(vault, managerFeeCollection, totalUnclaimManagerFee);
+	function claimManagerFee() external realizeReward nonReentrant {
+		underlyingToken.safeTransferFrom(vault, managerFeeCollector, totalUnclaimManagerFee);
 		totalUnclaimManagerFee = 0;
 	}
 
@@ -372,7 +376,7 @@ contract wTBTPoolV2Permission is
 	 * @dev mint wTBT
 	 * @param amount the amount of underlying token, 1 USDC = 10**6
 	 */
-	function mint(uint256 amount) external whenNotPaused realizeReward {
+	function mint(uint256 amount) external whenNotPaused realizeReward nonReentrant {
 		underlyingToken.safeTransferFrom(msg.sender, treasury, amount);
 
 		uint256 cTokenAmount;
@@ -389,7 +393,7 @@ contract wTBTPoolV2Permission is
 		_mint(msg.sender, amountAfterFee);
 
 		if (feeAmount != 0) {
-			_mint(feeCollection, feeAmount);
+			_mint(feeCollector, feeAmount);
 		}
 
 		totalUnderlying = totalUnderlying.add(amount);
@@ -399,7 +403,7 @@ contract wTBTPoolV2Permission is
 	 * @dev redeem wTBT
 	 * @param amount the amount of cToken, 1 cToken = 10**18, which eaquals to 1 USDC (if not interest).
 	 */
-	function redeem(uint256 amount) external whenNotPaused realizeReward {
+	function redeem(uint256 amount) external whenNotPaused realizeReward nonReentrant {
 		require(amount <= cTokenBalances[msg.sender], "100");
 		require(totalUnderlying >= 0, "101");
 		require(cTokenTotalSupply > 0, "104");
@@ -432,7 +436,7 @@ contract wTBTPoolV2Permission is
 	 * @dev redeem underlying token
 	 * @param _id the id of redeem details
 	 */
-	function redeemUnderlyingTokenById(uint256 _id) external whenNotPaused {
+	function redeemUnderlyingTokenById(uint256 _id) external whenNotPaused nonReentrant {
 		require(redeemDetails[_id].user == msg.sender, "105");
 		require(redeemDetails[_id].isDone == false, "106");
 		require(underlyingToken.balanceOf(vault) >= redeemDetails[_id].underlyingAmount, "107");
@@ -447,7 +451,7 @@ contract wTBTPoolV2Permission is
 		uint256 feeAmount = amount.mul(redeemFeeRate).div(FEE_COEFFICIENT);
 		uint256 amountAfterFee = amount.sub(feeAmount);
 		underlyingToken.safeTransferFrom(vault, msg.sender, amountAfterFee);
-		underlyingToken.safeTransferFrom(vault, feeCollection, feeAmount);
+		underlyingToken.safeTransferFrom(vault, feeCollector, feeAmount);
 		emit RedeemUnderlyingToken(msg.sender, amount, amountAfterFee);
 	}
 

@@ -25,8 +25,8 @@ describe("TBT Contract", async () => {
 	let controller
 	let treasury
 	let vault
-	let fee_collection
-	let manager_fee_collection
+	let fee_collector
+	let manager_fee_collector
 
 	let admin
 	let poolManager
@@ -54,8 +54,8 @@ describe("TBT Contract", async () => {
 			deployer,
 			admin,
 			poolManager,
-			fee_collection,
-			manager_fee_collection,
+			fee_collector,
+			manager_fee_collector,
 		] = await ethers.getSigners()
 		now = (await ethers.provider.getBlock("latest")).timestamp
 		const ERC20Token = await ethers.getContractFactory("ERC20Token")
@@ -76,8 +76,8 @@ describe("TBT Contract", async () => {
 			0,
 			vault.address,
 			treasury.address,
-			fee_collection.address,
-			manager_fee_collection.address,
+			fee_collector.address,
+			manager_fee_collector.address,
 		])
 		await tbtPool.deployed()
 

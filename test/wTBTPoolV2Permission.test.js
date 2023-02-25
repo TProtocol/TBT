@@ -100,7 +100,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 	let investor, investor2, investor3
 	let deployer
 	let controller
-	let treasury, vault, fee_collection, manager_fee_collection
+	let treasury, vault, fee_collector, manager_fee_collector
 
 	let admin, poolManager, aprManager
 
@@ -126,8 +126,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			admin,
 			poolManager,
 			aprManager,
-			fee_collection,
-			manager_fee_collection,
+			fee_collector,
+			manager_fee_collector,
 		] = await ethers.getSigners()
 		now = (await ethers.provider.getBlock("latest")).timestamp
 		const ERC20Token = await ethers.getContractFactory("ERC20Token")
@@ -148,8 +148,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			0,
 			treasury.address,
 			vault.address,
-			fee_collection.address,
-			manager_fee_collection.address,
+			fee_collector.address,
+			manager_fee_collector.address,
 		])
 		await wtbtPool.deployed()
 		// wtbtPool = await wTBTPool.connect(deployer).deploy(
@@ -409,12 +409,10 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setVault(vault.address)).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted
-			await expect(wtbtPool.connect(poolManager).setFeeCollection(fee_collection.address)).to
-				.be.reverted
+			await expect(wtbtPool.connect(poolManager).setFeeCollector(fee_collector.address)).to.be
+				.reverted
 			await expect(
-				wtbtPool
-					.connect(poolManager)
-					.setManagerFeeCollection(manager_fee_collection.address)
+				wtbtPool.connect(poolManager).setManagerFeeCollector(manager_fee_collector.address)
 			).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted
 		})
@@ -428,8 +426,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setVault(vault.address)).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted
-			await expect(wtbtPool.connect(poolManager).setFeeCollection(fee_collection.address)).to
-				.be.reverted
+			await expect(wtbtPool.connect(poolManager).setFeeCollector(fee_collector.address)).to.be
+				.reverted
 			await expect(wtbtPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted
 		})
 
@@ -439,8 +437,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 			await expect(wtbtPool.connect(poolManager).setVault(vault.address)).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setTreasury(treasury.address)).to.be.reverted
-			await expect(wtbtPool.connect(poolManager).setFeeCollection(fee_collection.address)).to
-				.be.reverted
+			await expect(wtbtPool.connect(poolManager).setFeeCollector(fee_collector.address)).to.be
+				.reverted
 		})
 
 		it("Should be able to change pool settings with POOL_MANAGER_ROLE", async () => {
@@ -461,8 +459,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		it("Should be able to change pool settings with ADMIN_ROLE", async () => {
 			await wtbtPool.connect(admin).setVault(vault.address)
 			await wtbtPool.connect(admin).setTreasury(treasury.address)
-			await wtbtPool.connect(admin).setFeeCollection(fee_collection.address)
-			await wtbtPool.connect(admin).setManagerFeeCollection(manager_fee_collection.address)
+			await wtbtPool.connect(admin).setFeeCollector(fee_collector.address)
+			await wtbtPool.connect(admin).setManagerFeeCollector(manager_fee_collector.address)
 		})
 
 		it("Should not be able to change pause settings without ADMIN_ROLE", async () => {
@@ -554,7 +552,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				ethers.utils.parseUnits("99", 18)
 			)
 			// collect fee
-			expect(await wtbtPool.balanceOf(fee_collection.address)).to.equal(
+			expect(await wtbtPool.balanceOf(fee_collector.address)).to.equal(
 				ethers.utils.parseUnits("1", 18)
 			)
 
@@ -566,7 +564,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
 			await wtbtPool.connect(investor).mint(amountToMint)
 
-			const beforeFeeCollectBalance = await usdcToken.balanceOf(fee_collection.address)
+			const beforeFeeCollectBalance = await usdcToken.balanceOf(fee_collector.address)
 			const beforeInvestorBalance = await usdcToken.balanceOf(investor.address)
 
 			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
@@ -583,7 +581,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				beforeInvestorBalance.add(redeemUnderlyingAmount)
 			)
 
-			const afterFeeCollectBalance = await usdcToken.balanceOf(fee_collection.address)
+			const afterFeeCollectBalance = await usdcToken.balanceOf(fee_collector.address)
 			expect(afterFeeCollectBalance).to.equal(
 				beforeFeeCollectBalance.add(pendingRedeem.sub(redeemUnderlyingAmount))
 			)
