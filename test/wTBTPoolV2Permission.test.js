@@ -94,12 +94,12 @@ const craftNonceBasedCertificate = async (_txPayload, _token, _extension, _clock
 
 describe("wTBTPool V2 Permission Contract", async () => {
 	let wtbtPool
-	let usdcToken
+	let usdcToken, stbtToken
 	let clockMock
 
 	let investor, investor2, investor3
-	let deployer
-	let controller
+	let deployer, recover
+	let controller, mpMintPool, mpRedeemPool
 	let treasury, vault, fee_collector, manager_fee_collector
 
 	let admin, poolManager, aprManager
@@ -117,8 +117,6 @@ describe("wTBTPool V2 Permission Contract", async () => {
 	beforeEach(async () => {
 		;[
 			controller,
-			treasury,
-			vault,
 			investor,
 			investor2,
 			investor3,
@@ -128,16 +126,37 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			aprManager,
 			fee_collector,
 			manager_fee_collector,
+			recover,
+			mpMintPool,
+			mpRedeemPool,
 		] = await ethers.getSigners()
 		now = (await ethers.provider.getBlock("latest")).timestamp
 		const ERC20Token = await ethers.getContractFactory("ERC20Token")
 		usdcToken = await ERC20Token.connect(deployer).deploy("USDC", "USDC", 6)
+		await usdcToken.deployed()
+		stbtToken = await ERC20Token.connect(deployer).deploy("STBT", "STBT", 18)
+		await stbtToken.deployed()
 		await usdcToken
 			.connect(deployer)
 			.mint(investor.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
 		await usdcToken
 			.connect(deployer)
 			.mint(investor2.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
+
+		const TreasuryFactory = await ethers.getContractFactory("Treasury")
+		const VaultFactory = await ethers.getContractFactory("Vault")
+
+		treasury = await TreasuryFactory.deploy(
+			admin.address,
+			recover.address,
+			mpMintPool.address,
+			mpRedeemPool.address,
+			stbtToken.address,
+			usdcToken.address
+		)
+		await treasury.deployed()
+		vault = await VaultFactory.deploy(admin.address, recover.address, usdcToken.address)
+		await vault.deployed()
 
 		wTBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")
 		wtbtPool = await upgrades.deployProxy(wTBTPool, [
@@ -151,6 +170,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			fee_collector.address,
 			manager_fee_collector.address,
 		])
+
 		await wtbtPool.deployed()
 		// wtbtPool = await wTBTPool.connect(deployer).deploy(
 		//   "wTBT Pool 1",
@@ -167,12 +187,19 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		await usdcToken
 			.connect(deployer)
 			.mint(vault.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
-		await usdcToken
-			.connect(vault)
-			.approve(wtbtPool.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
 
 		const ClockMock = await ethers.getContractFactory("ClockMock")
 		clockMock = await ClockMock.deploy()
+
+		// SET ROLE
+		let WTBTPOOL_ROLE = await treasury.WTBTPOOL_ROLE()
+		await treasury.connect(admin).grantRole(WTBTPOOL_ROLE, wtbtPool.address)
+		WTBTPOOL_ROLE = await vault.WTBTPOOL_ROLE()
+		await vault.connect(admin).grantRole(WTBTPOOL_ROLE, wtbtPool.address)
+
+		await stbtToken
+			.connect(deployer)
+			.mint(treasury.address, ethers.utils.parseUnits("1000000000", 18)) // 1 billion stbt for distribution
 	})
 
 	describe("Mint", async () => {
@@ -556,7 +583,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				ethers.utils.parseUnits("1", 18)
 			)
 
-			expect(await usdcToken.balanceOf(treasury.address)).to.equal(amountToMint)
+			expect(await usdcToken.balanceOf(mpMintPool.address)).to.equal(amountToMint)
 		})
 
 		it("Should be able to redeem with fee", async () => {

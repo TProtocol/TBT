@@ -11,6 +11,8 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "./tools/DomainAware.sol";
+import "./interface/ITreasury.sol";
+import "./interface/IVault.sol";
 
 import "hardhat/console.sol";
 
@@ -44,9 +46,9 @@ contract wTBTPoolV2Permission is
 	uint256 public capitalLowerBound;
 	IERC20Upgradeable public underlyingToken;
 	// Vault, used to pay USDC to user when redeem cToken and manager fee.
-	address public vault;
+	IVault public vault;
 	// Treasury, used to receive USDC from user when mint cToken.
-	address public treasury;
+	ITreasury public treasury;
 	// Fee Collector, used to receive fee when mint or redeem.
 	address public feeCollector;
 	// Manager fee collector, used to receive manager fee.
@@ -135,12 +137,12 @@ contract wTBTPoolV2Permission is
 		__ReentrancyGuard_init();
 		__DomainAware_init();
 
+		require(admin != address(0), "103");
 		// TODO: revisit.
 		_setupRole(DEFAULT_ADMIN_ROLE, admin);
 		_setRoleAdmin(POOL_MANAGER_ROLE, ADMIN_ROLE);
 		_setRoleAdmin(APR_MANAGER_ROLE, ADMIN_ROLE);
 
-		require(admin != address(0), "103");
 		_setupRole(ADMIN_ROLE, admin);
 		_setupRole(POOL_MANAGER_ROLE, admin);
 		_setupRole(APR_MANAGER_ROLE, admin);
@@ -159,8 +161,8 @@ contract wTBTPoolV2Permission is
 		require(_feeCollector != address(0), "109");
 		require(_managerFeeCollector != address(0), "109");
 
-		vault = _vault;
-		treasury = _treasury;
+		vault = IVault(_vault);
+		treasury = ITreasury(_treasury);
 		feeCollector = _feeCollector;
 		managerFeeCollector = _managerFeeCollector;
 
@@ -221,7 +223,7 @@ contract wTBTPoolV2Permission is
 	 */
 	function setVault(address _vault) external onlyRole(ADMIN_ROLE) {
 		require(_vault != address(0), "109");
-		vault = _vault;
+		vault = IVault(_vault);
 	}
 
 	/**
@@ -230,7 +232,7 @@ contract wTBTPoolV2Permission is
 	 */
 	function setTreasury(address _treasury) external onlyRole(ADMIN_ROLE) {
 		require(_treasury != address(0), "109");
-		treasury = _treasury;
+		treasury = ITreasury(_treasury);
 	}
 
 	/**
@@ -368,7 +370,7 @@ contract wTBTPoolV2Permission is
 	 * @dev claim protocol manager fee
 	 */
 	function claimManagerFee() external realizeReward nonReentrant {
-		underlyingToken.safeTransferFrom(vault, managerFeeCollector, totalUnclaimManagerFee);
+		vault.withdrawToUser(managerFeeCollector, totalUnclaimManagerFee);
 		totalUnclaimManagerFee = 0;
 	}
 
@@ -377,7 +379,8 @@ contract wTBTPoolV2Permission is
 	 * @param amount the amount of underlying token, 1 USDC = 10**6
 	 */
 	function mint(uint256 amount) external whenNotPaused realizeReward nonReentrant {
-		underlyingToken.safeTransferFrom(msg.sender, treasury, amount);
+		underlyingToken.safeTransferFrom(msg.sender, address(treasury), amount);
+		treasury.mintSTBT(amount);
 
 		uint256 cTokenAmount;
 		if (cTokenTotalSupply == 0 || totalUnderlying == 0) {
@@ -412,6 +415,8 @@ contract wTBTPoolV2Permission is
 
 		require(totalUnderlying.sub(underlyingAmount) >= capitalLowerBound, "102");
 
+		treasury.redeemSTBT(underlyingAmount);
+
 		_burn(msg.sender, amount);
 		totalUnderlying = totalUnderlying.sub(underlyingAmount);
 
@@ -439,7 +444,10 @@ contract wTBTPoolV2Permission is
 	function redeemUnderlyingTokenById(uint256 _id) external whenNotPaused nonReentrant {
 		require(redeemDetails[_id].user == msg.sender, "105");
 		require(redeemDetails[_id].isDone == false, "106");
-		require(underlyingToken.balanceOf(vault) >= redeemDetails[_id].underlyingAmount, "107");
+		require(
+			underlyingToken.balanceOf(address(vault)) >= redeemDetails[_id].underlyingAmount,
+			"107"
+		);
 		require(redeemDetails[_id].timestamp + processPeriod <= block.timestamp, "108");
 
 		uint256 amount = redeemDetails[_id].underlyingAmount;
@@ -450,8 +458,8 @@ contract wTBTPoolV2Permission is
 		totalPendingRedeems = totalPendingRedeems.sub(amount);
 		uint256 feeAmount = amount.mul(redeemFeeRate).div(FEE_COEFFICIENT);
 		uint256 amountAfterFee = amount.sub(feeAmount);
-		underlyingToken.safeTransferFrom(vault, msg.sender, amountAfterFee);
-		underlyingToken.safeTransferFrom(vault, feeCollector, feeAmount);
+		vault.withdrawToUser(msg.sender, amountAfterFee);
+		vault.withdrawToUser(feeCollector, feeAmount);
 		emit RedeemUnderlyingToken(msg.sender, amount, amountAfterFee);
 	}
 
