@@ -380,7 +380,7 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	 */
 	function mint(uint256 amount) external whenNotPaused realizeReward nonReentrant {
 		underlyingToken.safeTransferFrom(msg.sender, address(treasury), amount);
-		treasury.mintSTBT(amount);
+		treasury.mintSTBT();
 
 		uint256 cTokenAmount;
 		if (cTokenTotalSupply == 0 || totalUnderlying == 0) {

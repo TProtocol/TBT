@@ -9,9 +9,7 @@ interface ITreasury {
 
 	function setRedeemThreshold(uint256) external;
 
-	function mintSTBT(uint256) external;
-
-	function mintAllToSTBT() external;
+	function mintSTBT() external;
 
 	function redeemSTBT(uint256) external;
 

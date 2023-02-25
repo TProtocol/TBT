@@ -99,21 +99,13 @@ contract Treasury is AccessControl {
 	}
 
 	/**
-	 * @dev Transfer a give amout of underlying to mpMintPool
-	 * @param amount the amout of underlying
+	 * @dev if over than mint threshold, transfer all balance of underlying to mpMintPool
 	 */
-	function mintSTBT(uint256 amount) external onlyRole(WTBTPOOL_ROLE) {
-		require(amount >= mintThreshold, "less than mintThreshold");
-		underlying.transfer(mpMintPool, amount);
-	}
-
-	/**
-	 * @dev Transfer all balance of underlying to mpMintPool
-	 */
-	function mintAllToSTBT() external onlyRole(WTBTPOOL_ROLE) {
+	function mintSTBT() external onlyRole(WTBTPOOL_ROLE) {
 		uint256 balance = underlying.balanceOf(address(this));
-		require(balance >= mintThreshold, "less than mintThreshold");
-		underlying.safeTransfer(mpMintPool, balance);
+		if (balance >= mintThreshold) {
+			underlying.safeTransfer(mpMintPool, balance);
+		}
 	}
 
 	/**

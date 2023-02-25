@@ -197,6 +197,9 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		WTBTPOOL_ROLE = await vault.WTBTPOOL_ROLE()
 		await vault.connect(admin).grantRole(WTBTPOOL_ROLE, wtbtPool.address)
 
+		let MANAGER_ROLE = await treasury.MANAGER_ROLE()
+		await treasury.connect(admin).grantRole(MANAGER_ROLE, poolManager.address)
+
 		await stbtToken
 			.connect(deployer)
 			.mint(treasury.address, ethers.utils.parseUnits("1000000000", 18)) // 1 billion stbt for distribution
@@ -209,6 +212,20 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
 			await wtbtPool.connect(investor).mint(amountToMint)
+		})
+
+		it("Should be able to mint with threshold", async () => {
+			now = now + ONE_DAY
+			await mineBlockWithTimestamp(ethers.provider, now)
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await treasury.connect(poolManager).setMintThreshold(amountToMint * 2)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint * 2)
+			await wtbtPool.connect(investor).mint(amountToMint)
+
+			expect(await usdcToken.balanceOf(treasury.address)).to.be.equal(amountToMint)
+			await wtbtPool.connect(investor).mint(amountToMint)
+			expect(await usdcToken.balanceOf(treasury.address)).to.be.equal(0)
+			expect(await usdcToken.balanceOf(mpMintPool.address)).to.be.equal(amountToMint * 2)
 		})
 
 		it("Should not be able to mint when pause", async () => {
@@ -233,6 +250,27 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await mineBlockWithTimestamp(ethers.provider, now)
 			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
 			await wtbtPool.connect(investor).redeem(amountToRedeem)
+		})
+
+		it("Should be able to redeem over threshold", async () => {
+			now = now + ONE_DAY
+			const redeemThreshold = ethers.utils.parseUnits("100", 18) // 100 STBT
+			await treasury.connect(poolManager).setRedeemThreshold(redeemThreshold)
+			await mineBlockWithTimestamp(ethers.provider, now)
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await wtbtPool.connect(investor).redeem(amountToRedeem)
+		})
+
+		it("Should not be able to redeem less than threshold", async () => {
+			now = now + ONE_DAY
+			const redeemThreshold = ethers.utils.parseUnits("100", 18) // 100 STBT
+			await treasury.connect(poolManager).setRedeemThreshold(redeemThreshold + 1)
+			await mineBlockWithTimestamp(ethers.provider, now)
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			console.log(amountToRedeem)
+			await expect(wtbtPool.connect(investor).redeem(amountToRedeem)).to.be.revertedWith(
+				"less than redeemThreshold"
+			)
 		})
 
 		it("Should not be able to redeem when pause", async () => {
