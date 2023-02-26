@@ -13,7 +13,19 @@ interface ITreasury {
 
 	function redeemSTBT(uint256) external;
 
+	function redeemSTBTByCurveWithFee(
+		uint256 amount,
+		int128 j,
+		uint256 minReturn,
+		address receiver,
+		uint256 feeRate,
+		uint256 feeCoefficient,
+		address feeCollector
+	) external;
+
 	function redeemAllSTBT() external;
+
+	function claimManagerFee(address, uint256) external;
 
 	function recoverERC20(address, uint256) external;
 }

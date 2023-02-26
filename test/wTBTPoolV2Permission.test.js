@@ -98,7 +98,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 	let clockMock
 
 	let investor, investor2, investor3
-	let deployer, recover
+	let deployer
 	let controller, mpMintPool, mpRedeemPool
 	let treasury, vault, fee_collector, manager_fee_collector
 
@@ -126,7 +126,6 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			aprManager,
 			fee_collector,
 			manager_fee_collector,
-			recover,
 			mpMintPool,
 			mpRedeemPool,
 		] = await ethers.getSigners()
@@ -148,14 +147,13 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 		treasury = await TreasuryFactory.deploy(
 			admin.address,
-			recover.address,
 			mpMintPool.address,
 			mpRedeemPool.address,
 			stbtToken.address,
 			usdcToken.address
 		)
 		await treasury.deployed()
-		vault = await VaultFactory.deploy(admin.address, recover.address, usdcToken.address)
+		vault = await VaultFactory.deploy(admin.address, usdcToken.address)
 		await vault.deployed()
 
 		wTBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")
@@ -267,7 +265,6 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await treasury.connect(poolManager).setRedeemThreshold(redeemThreshold + 1)
 			await mineBlockWithTimestamp(ethers.provider, now)
 			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			console.log(amountToRedeem)
 			await expect(wtbtPool.connect(investor).redeem(amountToRedeem)).to.be.revertedWith(
 				"less than redeemThreshold"
 			)

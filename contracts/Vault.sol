@@ -13,19 +13,14 @@ contract Vault is AccessControl {
 	// underlying token address
 	IERC20 public underlying;
 
-	// recover is using to receive recovery of fund
-	address public recover;
-
-	constructor(address _admin, address _recover, address _underlying) {
+	constructor(address _admin, address _underlying) {
 		require(_admin != address(0), "!_admin");
 
 		_setupRole(DEFAULT_ADMIN_ROLE, _admin);
 		_setupRole(ADMIN_ROLE, _admin);
 
 		require(_underlying != address(0), "!_underlying");
-		require(_recover != address(0), "!_recover");
 		underlying = IERC20(_underlying);
-		recover = _recover;
 	}
 
 	/**
@@ -39,10 +34,12 @@ contract Vault is AccessControl {
 
 	/**
 	 * @dev Allows to recover any ERC20 token
+	 * @param recover Using to receive recovery of fund
 	 * @param tokenAddress Address of the token to recover
 	 * @param amountToRecover Amount of collateral to transfer
 	 */
 	function recoverERC20(
+		address recover,
 		address tokenAddress,
 		uint256 amountToRecover
 	) external onlyRole(ADMIN_ROLE) {

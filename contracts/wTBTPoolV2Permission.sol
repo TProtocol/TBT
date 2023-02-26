@@ -116,6 +116,7 @@ contract wTBTPoolV2Permission is
 	);
 
 	event RedeemUnderlyingToken(address indexed user, uint256 amount, uint256 fee);
+	event FlashRedeem(address indexed user, int128 j, uint256 amount);
 
 	// Treasury: When user mint cToken, treasury will receive USDC.
 	// Vault: When user redeem cToken, vault will pay USDC.
@@ -178,45 +179,6 @@ contract wTBTPoolV2Permission is
 	/*                                Admin Settings                               */
 	/* -------------------------------------------------------------------------- */
 
-	// Pause the contract. Revert if already paused.
-	function pause() external onlyRole(ADMIN_ROLE) {
-		PausableUpgradeable._pause();
-	}
-
-	// Unpause the contract. Revert if already unpaused.
-	function unpause() external onlyRole(ADMIN_ROLE) {
-		PausableUpgradeable._unpause();
-	}
-
-	/* -------------------------------------------------------------------------- */
-	/*                                Pool Settings                               */
-	/* -------------------------------------------------------------------------- */
-
-	/**
-	 * @dev to set APR
-	 * @param _targetAPR the amount of APR. it should be multiply 10**6
-	 */
-	function setTargetAPR(uint256 _targetAPR) external onlyRole(APR_MANAGER_ROLE) realizeReward {
-		require(_targetAPR <= maxAPR, "target apr should be less than max apr");
-		targetAPR = _targetAPR;
-	}
-
-	/**
-	 * @dev to set the period of processing
-	 * @param _processPeriod the period of processing. it's second.
-	 */
-	function setProcessPeriod(uint256 _processPeriod) external onlyRole(POOL_MANAGER_ROLE) {
-		processPeriod = _processPeriod;
-	}
-
-	/**
-	 * @dev to set the capital lower bound
-	 * @param _capitalLowerBound the capital lower bound. If lower bound is $1m USDC, the value should be 1,000,000 * 10**6
-	 */
-	function setCapitalLowerBound(uint256 _capitalLowerBound) external onlyRole(POOL_MANAGER_ROLE) {
-		capitalLowerBound = _capitalLowerBound;
-	}
-
 	/**
 	 * @dev to set the vault
 	 * @param _vault the address of vault
@@ -251,6 +213,45 @@ contract wTBTPoolV2Permission is
 	function setManagerFeeCollector(address _managerFeeCollector) external onlyRole(ADMIN_ROLE) {
 		require(_managerFeeCollector != address(0), "109");
 		managerFeeCollector = _managerFeeCollector;
+	}
+
+	/* -------------------------------------------------------------------------- */
+	/*                                Pool Settings                               */
+	/* -------------------------------------------------------------------------- */
+
+	// Pause the contract. Revert if already paused.
+	function pause() external onlyRole(POOL_MANAGER_ROLE) {
+		PausableUpgradeable._pause();
+	}
+
+	// Unpause the contract. Revert if already unpaused.
+	function unpause() external onlyRole(POOL_MANAGER_ROLE) {
+		PausableUpgradeable._unpause();
+	}
+
+	/**
+	 * @dev to set APR
+	 * @param _targetAPR the amount of APR. it should be multiply 10**6
+	 */
+	function setTargetAPR(uint256 _targetAPR) external onlyRole(APR_MANAGER_ROLE) realizeReward {
+		require(_targetAPR <= maxAPR, "target apr should be less than max apr");
+		targetAPR = _targetAPR;
+	}
+
+	/**
+	 * @dev to set the period of processing
+	 * @param _processPeriod the period of processing. it's second.
+	 */
+	function setProcessPeriod(uint256 _processPeriod) external onlyRole(POOL_MANAGER_ROLE) {
+		processPeriod = _processPeriod;
+	}
+
+	/**
+	 * @dev to set the capital lower bound
+	 * @param _capitalLowerBound the capital lower bound. If lower bound is $1m USDC, the value should be 1,000,000 * 10**6
+	 */
+	function setCapitalLowerBound(uint256 _capitalLowerBound) external onlyRole(POOL_MANAGER_ROLE) {
+		capitalLowerBound = _capitalLowerBound;
 	}
 
 	/**
@@ -367,10 +368,10 @@ contract wTBTPoolV2Permission is
 	}
 
 	/**
-	 * @dev claim protocol manager fee
+	 * @dev claim protocol's manager fee
 	 */
 	function claimManagerFee() external realizeReward nonReentrant {
-		vault.withdrawToUser(managerFeeCollector, totalUnclaimManagerFee);
+		treasury.claimManagerFee(managerFeeCollector, totalUnclaimManagerFee);
 		totalUnclaimManagerFee = 0;
 	}
 
@@ -415,10 +416,10 @@ contract wTBTPoolV2Permission is
 
 		require(totalUnderlying.sub(underlyingAmount) >= capitalLowerBound, "102");
 
-		treasury.redeemSTBT(underlyingAmount);
-
 		_burn(msg.sender, amount);
 		totalUnderlying = totalUnderlying.sub(underlyingAmount);
+
+		treasury.redeemSTBT(underlyingAmount);
 
 		redeemIndex++;
 		redeemDetails[redeemIndex] = RedeemDetail({
@@ -435,6 +436,40 @@ contract wTBTPoolV2Permission is
 		totalPendingRedeems = totalPendingRedeems.add(underlyingAmount);
 
 		emit RedeemRequested(redeemIndex, block.timestamp, msg.sender, amount, underlyingAmount);
+	}
+
+	/**
+	 * @dev redeem wTBT by Curve
+	 * @param amount the amount of cToken, 1 cToken = 10**18, which eaquals to 1 USDC (if not interest).
+	 * @param j token of index for curve pool
+	 * @param minReturn the minimum amount of return
+	 */
+	function flashRedeem(
+		uint256 amount,
+		int128 j,
+		uint256 minReturn
+	) external whenNotPaused realizeReward nonReentrant {
+		require(amount <= cTokenBalances[msg.sender], "100");
+		require(totalUnderlying >= 0, "101");
+		require(cTokenTotalSupply > 0, "104");
+
+		uint256 underlyingAmount = amount.mul(totalUnderlying).div(cTokenTotalSupply);
+
+		require(totalUnderlying.sub(underlyingAmount) >= capitalLowerBound, "102");
+
+		_burn(msg.sender, amount);
+		totalUnderlying = totalUnderlying.sub(underlyingAmount);
+		treasury.redeemSTBTByCurveWithFee(
+			underlyingAmount,
+			j,
+			minReturn,
+			msg.sender,
+			redeemFeeRate,
+			FEE_COEFFICIENT,
+			feeCollector
+		);
+
+		emit FlashRedeem(msg.sender, j, underlyingAmount);
 	}
 
 	/**

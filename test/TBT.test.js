@@ -21,7 +21,7 @@ describe("TBT Contract", async () => {
 	let investor
 	let investor2
 	let investor3
-	let deployer, recover
+	let deployer
 	let controller, mpMintPool, mpRedeemPool
 	let treasury
 	let vault
@@ -54,7 +54,6 @@ describe("TBT Contract", async () => {
 			poolManager,
 			fee_collector,
 			manager_fee_collector,
-			recover,
 			mpMintPool,
 			mpRedeemPool,
 		] = await ethers.getSigners()
@@ -75,7 +74,6 @@ describe("TBT Contract", async () => {
 
 		treasury = await TreasuryFactory.connect(deployer).deploy(
 			admin.address,
-			recover.address,
 			mpMintPool.address,
 			mpRedeemPool.address,
 			stbtToken.address,
@@ -85,11 +83,7 @@ describe("TBT Contract", async () => {
 
 		const VaultFactory = await ethers.getContractFactory("Vault")
 
-		vault = await VaultFactory.connect(deployer).deploy(
-			admin.address,
-			recover.address,
-			usdcToken.address
-		)
+		vault = await VaultFactory.connect(deployer).deploy(admin.address, usdcToken.address)
 		await vault.deployed()
 
 		wTBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")

@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
+import "./interface/ICurve.sol";
+
 contract Treasury is AccessControl {
 	using SafeERC20 for IERC20;
 	using SafeMath for uint256;
@@ -22,6 +24,9 @@ contract Treasury is AccessControl {
 	IERC20 public stbt;
 	// underlying token address
 	IERC20 public underlying;
+	// STBT curve pool
+	// Mainnet: 0x7B42d77bd2feE3c98baA58D559B83Ff3bB4702cf
+	ICurve curvePool;
 
 	// mint threshold for underlying token
 	uint256 mintThreshold;
@@ -30,12 +35,8 @@ contract Treasury is AccessControl {
 	// convert a amount from underlying token to stbt
 	uint256 basis;
 
-	// recover is using to receive recovery of fund
-	address public recover;
-
 	constructor(
 		address _admin,
-		address _recover,
 		address _mpMintPool,
 		address _mpRedeemPool,
 		address _stbt,
@@ -52,12 +53,10 @@ contract Treasury is AccessControl {
 		require(_mpRedeemPool != address(0), "!_mpRedeemPool");
 		require(_stbt != address(0), "!_stbt");
 		require(_underlying != address(0), "!_underlying");
-		require(_recover != address(0), "!_recover");
 		mpMintPool = _mpMintPool;
 		mpRedeemPool = _mpRedeemPool;
 		stbt = IERC20(_stbt);
 		underlying = IERC20(_underlying);
-		recover = _recover;
 
 		uint256 underlyingDecimals = ERC20(_underlying).decimals();
 
@@ -68,7 +67,7 @@ contract Treasury is AccessControl {
 	 * @dev to set the mint pool
 	 * @param _mintPool the address of mint pool
 	 */
-	function setMintPool(address _mintPool) external onlyRole(MANAGER_ROLE) {
+	function setMintPool(address _mintPool) external onlyRole(ADMIN_ROLE) {
 		require(_mintPool != address(0), "!_mintPool");
 		mpMintPool = _mintPool;
 	}
@@ -77,9 +76,18 @@ contract Treasury is AccessControl {
 	 * @dev to set the redeem pool
 	 * @param _redeemPool the address of redeem pool
 	 */
-	function setRedeemPool(address _redeemPool) external onlyRole(MANAGER_ROLE) {
+	function setRedeemPool(address _redeemPool) external onlyRole(ADMIN_ROLE) {
 		require(_redeemPool != address(0), "!_redeemPool");
 		mpRedeemPool = _redeemPool;
+	}
+
+	/**
+	 * @dev to set the stbt curve pool
+	 * @param _curvePool the address of curve pool
+	 */
+	function setCurvePool(address _curvePool) external onlyRole(ADMIN_ROLE) {
+		require(_curvePool != address(0), "!_curvePool");
+		curvePool = ICurve(_curvePool);
 	}
 
 	/**
@@ -109,7 +117,7 @@ contract Treasury is AccessControl {
 	}
 
 	/**
-	 * @dev Transfer a give amout of stbt to matrix port's mint pool
+	 * @dev Transfer a give amout of stbt to matrixport's mint pool
 	 * @param amount the amout of underlying token
 	 */
 	function redeemSTBT(uint256 amount) external onlyRole(WTBTPOOL_ROLE) {
@@ -120,7 +128,41 @@ contract Treasury is AccessControl {
 	}
 
 	/**
-	 * @dev Transfer all balance of stbt to matrix port's redeem pool
+	 * @dev Transfer a give amout of stbt to matrixport's mint pool
+	 * @param amount the amout of underlying token
+	 * @param j token of index for curve pool
+	 * @param minReturn the minimum amount of return
+	 * @param receiver used to receive token
+	 * @param feeRate redeem fee rate
+	 * @param feeCoefficient redeem fee rate coefficient
+	 * @param feeCollector fee collector
+	 */
+	function redeemSTBTByCurveWithFee(
+		uint256 amount,
+		int128 j,
+		uint256 minReturn,
+		address receiver,
+		uint256 feeRate,
+		uint256 feeCoefficient,
+		address feeCollector
+	) external onlyRole(WTBTPOOL_ROLE) {
+		// convert to stbt amount
+		uint256 stbtAmount = amount.mul(basis);
+		// From stbt to others
+		uint256 dy = curvePool.get_dy(0, j, stbtAmount);
+		require(dy >= minReturn, "!minReturn");
+		stbt.approve(address(curvePool), stbtAmount);
+		curvePool.exchange(0, j, stbtAmount, dy);
+		IERC20 targetToken = IERC20(curvePool.coins(uint256(int256(j))));
+
+		uint256 feeAmount = dy.mul(feeRate).div(feeCoefficient);
+		uint256 amountAfterFee = dy.sub(feeAmount);
+		targetToken.safeTransfer(receiver, amountAfterFee);
+		targetToken.safeTransfer(feeCollector, amountAfterFee);
+	}
+
+	/**
+	 * @dev Transfer all balance of stbt to matrixport's redeem pool
 	 */
 	function redeemAllSTBT() external onlyRole(WTBTPOOL_ROLE) {
 		uint256 balance = stbt.balanceOf(address(this));
@@ -129,11 +171,25 @@ contract Treasury is AccessControl {
 	}
 
 	/**
+	 * @dev claim manager fee with stbt
+	 * @param target Used to receive
+	 * @param amountToTarget Amount of underlying to transfer
+	 */
+	function claimManagerFee(
+		address target,
+		uint256 amountToTarget
+	) external onlyRole(WTBTPOOL_ROLE) {
+		uint256 stbtAmount = amountToTarget.mul(basis);
+		stbt.safeTransfer(target, stbtAmount);
+	}
+
+	/**
 	 * @dev Allows to recover any ERC20 token
 	 * @param tokenAddress Address of the token to recover
 	 * @param amountToRecover Amount of collateral to transfer
 	 */
 	function recoverERC20(
+		address recover,
 		address tokenAddress,
 		uint256 amountToRecover
 	) external onlyRole(ADMIN_ROLE) {
