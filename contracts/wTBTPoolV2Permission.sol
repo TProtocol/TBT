@@ -115,7 +115,7 @@ contract wTBTPoolV2Permission is
 		uint256 underlyingAmount
 	);
 
-	event RedeemUnderlyingToken(address indexed user, uint256 amount, uint256 fee);
+	event RedeemUnderlyingToken(address indexed user, uint256 amount, uint256 fee, uint256 id);
 	event FlashRedeem(address indexed user, int128 j, uint256 amount);
 
 	// Treasury: When user mint cToken, treasury will receive USDC.
@@ -495,7 +495,7 @@ contract wTBTPoolV2Permission is
 		uint256 amountAfterFee = amount.sub(feeAmount);
 		vault.withdrawToUser(msg.sender, amountAfterFee);
 		vault.withdrawToUser(feeCollector, feeAmount);
-		emit RedeemUnderlyingToken(msg.sender, amount, amountAfterFee);
+		emit RedeemUnderlyingToken(msg.sender, amount, amountAfterFee, _id);
 	}
 
 	/* ---------------------------- End of Core Logic --------------------------- */
