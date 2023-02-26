@@ -94,7 +94,7 @@ const craftNonceBasedCertificate = async (_txPayload, _token, _extension, _clock
 
 describe("wTBTPool V2 Permission Contract", async () => {
 	let wtbtPool
-	let usdcToken, stbtToken
+	let usdtToken, daiToken, usdcToken, stbtToken
 	let clockMock
 
 	let investor, investor2, investor3
@@ -131,10 +131,10 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		] = await ethers.getSigners()
 		now = (await ethers.provider.getBlock("latest")).timestamp
 		const ERC20Token = await ethers.getContractFactory("ERC20Token")
+		usdtToken = await ERC20Token.connect(deployer).deploy("USDT", "USDT", 6)
 		usdcToken = await ERC20Token.connect(deployer).deploy("USDC", "USDC", 6)
-		await usdcToken.deployed()
+		daiToken = await ERC20Token.connect(deployer).deploy("DAI", "DAI", 18)
 		stbtToken = await ERC20Token.connect(deployer).deploy("STBT", "STBT", 18)
-		await stbtToken.deployed()
 		await usdcToken
 			.connect(deployer)
 			.mint(investor.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
@@ -150,7 +150,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			mpMintPool.address,
 			mpRedeemPool.address,
 			stbtToken.address,
-			usdcToken.address
+			usdcToken.address,
+			[daiToken.address, usdcToken.address, usdtToken.address]
 		)
 		await treasury.deployed()
 		vault = await VaultFactory.deploy(admin.address, usdcToken.address)
