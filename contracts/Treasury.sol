@@ -34,13 +34,17 @@ contract Treasury is AccessControl {
 	uint256 redeemThreshold;
 	// convert a amount from underlying token to stbt
 	uint256 basis;
+	// coins , [DAI, USDC, USDT]
+	// see https://etherscan.io/address/0x7b42d77bd2fee3c98baa58d559b83ff3bb4702cf#code
+	address[3] coins;
 
 	constructor(
 		address _admin,
 		address _mpMintPool,
 		address _mpRedeemPool,
 		address _stbt,
-		address _underlying
+		address _underlying,
+		address[3] memory _coins
 	) {
 		require(_admin != address(0), "!_admin");
 		_setupRole(DEFAULT_ADMIN_ROLE, _admin);
@@ -61,6 +65,7 @@ contract Treasury is AccessControl {
 		uint256 underlyingDecimals = ERC20(_underlying).decimals();
 
 		basis = 10 ** (uint256(ERC20(_stbt).decimals() - underlyingDecimals));
+		coins = _coins;
 	}
 
 	/**
@@ -156,11 +161,11 @@ contract Treasury is AccessControl {
 		// convert to stbt amount
 		uint256 stbtAmount = amount.mul(basis);
 		// From stbt to others
-		uint256 dy = curvePool.get_dy(0, j, stbtAmount);
+		uint256 dy = curvePool.get_dy_underlying(0, j, stbtAmount);
 		require(dy >= minReturn, "!minReturn");
 		stbt.approve(address(curvePool), stbtAmount);
-		curvePool.exchange(0, j, stbtAmount, dy);
-		IERC20 targetToken = IERC20(curvePool.coins(uint256(int256(j))));
+		curvePool.exchange_underlying(0, j, stbtAmount, dy);
+		IERC20 targetToken = IERC20(coins[uint256(int256(j - 1))]);
 
 		uint256 feeAmount = dy.mul(feeRate).div(feeCoefficient);
 		uint256 amountAfterFee = dy.sub(feeAmount);

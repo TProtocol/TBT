@@ -25,6 +25,8 @@ describe("redeem by Curve", async () => {
 
 	let now
 
+	let testTokenList
+
 	beforeEach(async () => {
 		;[
 			investor,
@@ -126,7 +128,8 @@ describe("redeem by Curve", async () => {
 			mpMintPool.address,
 			mpRedeemPool.address,
 			stbtToken.address,
-			usdcToken.address
+			usdcToken.address,
+			[daiToken.address, usdcToken.address, usdtToken.address]
 		)
 		await treasury.deployed()
 
@@ -167,9 +170,26 @@ describe("redeem by Curve", async () => {
 
 		// set curve pool
 		await treasury.connect(admin).setCurvePool(stbtSwapPool.address)
+
+		// test list
+		testTokenList = [daiToken, usdcToken, usdtToken]
 	})
 
 	describe("Redeem", async () => {
+		let testList = [
+			{
+				tokenName: "DAI",
+				tokenIndex: 1,
+			},
+			{
+				tokenName: "USDC",
+				tokenIndex: 2,
+			},
+			{
+				tokenName: "USDT",
+				tokenIndex: 3,
+			},
+		]
 		beforeEach(async () => {
 			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
@@ -178,41 +198,49 @@ describe("redeem by Curve", async () => {
 			await wtbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address)
 		})
 
-		it("Should be able to flash redeem for 3Crv with zero fee", async () => {
-			now = now + ONE_DAY
-			await mineBlockWithTimestamp(ethers.provider, now)
+		testList.forEach(({ tokenName, tokenIndex }, i) => {
+			it(`Should be able to flash redeem for ${tokenName} with zero fee`, async () => {
+				now = now + ONE_DAY
+				await mineBlockWithTimestamp(ethers.provider, now)
 
-			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			const underlyingAmount = await wtbtPool.getUnderlyingByCToken(amountToRedeem)
-			const stbtAmount = await treasury.getSTBTbyUnderlyingAmount(underlyingAmount)
-			const dy = await stbtSwapPool.get_dy(0, 1, stbtAmount)
+				const amountToRedeem = await wtbtPool
+					.connect(investor)
+					.cTokenBalances(investor.address)
+				const underlyingAmount = await wtbtPool.getUnderlyingByCToken(amountToRedeem)
+				const stbtAmount = await treasury.getSTBTbyUnderlyingAmount(underlyingAmount)
+				const dy = await stbtSwapPool.get_dy_underlying(0, tokenIndex, stbtAmount)
+				const beforeBalance = await testTokenList[i].balanceOf(investor.address)
 
-			await wtbtPool.connect(investor).flashRedeem(amountToRedeem, 1, 0)
+				await wtbtPool.connect(investor).flashRedeem(amountToRedeem, tokenIndex, 0)
 
-			const user3Crvalance = await _3Crv.balanceOf(investor.address)
-			expect(user3Crvalance).to.be.equal(dy)
-		})
+				const afterBalance = await testTokenList[i].balanceOf(investor.address)
+				expect(afterBalance.sub(beforeBalance)).to.be.equal(dy)
+			})
 
-		// 1%
-		await wtbtPool.connect(poolManager).setRedeemFeeRate(1000000)
-		it("Should be able to flash redeem for 3Crv with fee", async () => {
-			now = now + ONE_DAY
-			await mineBlockWithTimestamp(ethers.provider, now)
+			it(`Should be able to flash redeem for ${tokenName} with fee`, async () => {
+				now = now + ONE_DAY
+				await mineBlockWithTimestamp(ethers.provider, now)
+				await wtbtPool.connect(poolManager).setRedeemFeeRate(1000000)
+				const amountToRedeem = await wtbtPool
+					.connect(investor)
+					.cTokenBalances(investor.address)
+				const underlyingAmount = await wtbtPool.getUnderlyingByCToken(amountToRedeem)
+				const stbtAmount = await treasury.getSTBTbyUnderlyingAmount(underlyingAmount)
+				const dy = await stbtSwapPool.get_dy_underlying(0, tokenIndex, stbtAmount)
 
-			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
-			const underlyingAmount = await wtbtPool.getUnderlyingByCToken(amountToRedeem)
-			const stbtAmount = await treasury.getSTBTbyUnderlyingAmount(underlyingAmount)
-			const dy = await stbtSwapPool.get_dy(0, 1, stbtAmount)
+				const fee = dy.mul(1000000).div(100000000)
+				const amountAfterFee = dy.sub(fee)
+				const beforeUserBalance = await testTokenList[i].balanceOf(investor.address)
+				await wtbtPool.connect(investor).flashRedeem(amountToRedeem, tokenIndex, 0)
+				const afterUserBalance = await testTokenList[i].balanceOf(investor.address)
 
-			const fee = dy.mul(1000000).div(100000000)
-			const amountAfterFee = dy.sub(fee)
-			await wtbtPool.connect(investor).flashRedeem(amountToRedeem, 1, 0)
+				expect(afterUserBalance.sub(beforeUserBalance)).to.be.equal(amountAfterFee)
 
-			const user3Crvalance = await _3Crv.balanceOf(investor.address)
-			expect(user3Crvalance).to.be.equal(amountAfterFee)
-
-			const feeCollector3CrvBalance = await _3Crv.balanceOf(fee_collector.address)
-			expect(feeCollector3CrvBalance).to.be.equal(fee)
+				const feeCollectorDAIBalance = await testTokenList[i].balanceOf(
+					fee_collector.address
+				)
+				expect(feeCollectorDAIBalance).to.be.equal(fee)
+			})
 		})
 	})
 })
