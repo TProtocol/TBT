@@ -107,6 +107,13 @@ contract Treasury is AccessControl {
 	}
 
 	/**
+	 * @dev convert underlying amount to stbt
+	 */
+	function getSTBTbyUnderlyingAmount(uint256 amount) public view returns (uint256) {
+		return amount.mul(basis);
+	}
+
+	/**
 	 * @dev if over than mint threshold, transfer all balance of underlying to mpMintPool
 	 */
 	function mintSTBT() external onlyRole(WTBTPOOL_ROLE) {
@@ -158,7 +165,7 @@ contract Treasury is AccessControl {
 		uint256 feeAmount = dy.mul(feeRate).div(feeCoefficient);
 		uint256 amountAfterFee = dy.sub(feeAmount);
 		targetToken.safeTransfer(receiver, amountAfterFee);
-		targetToken.safeTransfer(feeCollector, amountAfterFee);
+		targetToken.safeTransfer(feeCollector, feeAmount);
 	}
 
 	/**
