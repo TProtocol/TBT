@@ -210,6 +210,21 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
 			await wtbtPool.connect(investor).mint(amountToMint)
+			expect(await wtbtPool.balanceOf(investor.address)).to.be.equal(
+				ethers.utils.parseUnits("100", 18)
+			)
+		})
+
+		it("Should be able to mintFor", async () => {
+			now = now + ONE_DAY
+			await mineBlockWithTimestamp(ethers.provider, now)
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await wtbtPool.connect(investor).mintFor(amountToMint, investor2.address)
+			expect(await wtbtPool.balanceOf(investor.address)).to.be.equal(0)
+			expect(await wtbtPool.balanceOf(investor2.address)).to.be.equal(
+				ethers.utils.parseUnits("100", 18)
+			)
 		})
 
 		it("Should be able to mint with threshold", async () => {

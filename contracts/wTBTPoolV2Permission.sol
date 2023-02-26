@@ -379,7 +379,28 @@ contract wTBTPoolV2Permission is
 	 * @dev mint wTBT
 	 * @param amount the amount of underlying token, 1 USDC = 10**6
 	 */
-	function mint(uint256 amount) external whenNotPaused realizeReward nonReentrant {
+	function mint(uint256 amount) external {
+		_mintFor(amount, msg.sender);
+	}
+
+	/**
+	 * @dev mint wTBT
+	 * @param amount the amount of underlying token, 1 USDC = 10**6
+	 * @param receiver the address be used to receive tbt
+	 */
+	function mintFor(uint256 amount, address receiver) external {
+		_mintFor(amount, receiver);
+	}
+
+	/**
+	 * @dev mint wTBT
+	 * @param amount the amount of underlying token, 1 USDC = 10**6
+	 * @param receiver the address be used to receive tbt
+	 */
+	function _mintFor(
+		uint256 amount,
+		address receiver
+	) internal whenNotPaused realizeReward nonReentrant {
 		underlyingToken.safeTransferFrom(msg.sender, address(treasury), amount);
 		treasury.mintSTBT();
 
@@ -394,7 +415,7 @@ contract wTBTPoolV2Permission is
 		uint256 feeAmount = cTokenAmount.mul(mintFeeRate).div(FEE_COEFFICIENT);
 		uint256 amountAfterFee = cTokenAmount.sub(feeAmount);
 
-		_mint(msg.sender, amountAfterFee);
+		_mint(receiver, amountAfterFee);
 
 		if (feeAmount != 0) {
 			_mint(feeCollector, feeAmount);
