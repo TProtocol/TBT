@@ -6,4 +6,6 @@ interface IwTBTPoolV2Permission {
 	function getInitalCtokenToUnderlying() external view returns (uint256);
 
 	function mintFor(uint256, address) external;
+
+	function mint(uint256) external;
 }

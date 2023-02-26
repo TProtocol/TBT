@@ -140,6 +140,23 @@ describe("TBT Contract", async () => {
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 
 			await rtbt.connect(investor).wrap(wtbtBalance)
+			// because 0% apr. the balance of wtbw should be equal tbt.
+			expect(await rtbt.balanceOf(investor.address)).to.be.equal(wtbtBalance)
+		})
+
+		it("Should be able to wrapFor TBT from TBT", async () => {
+			now = now + ONE_DAY
+			await mineBlockWithTimestamp(ethers.provider, now)
+			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
+			await wtbtPool.connect(investor).mint(amountToBuy)
+
+			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
+
+			await rtbt.connect(investor).wrapFor(wtbtBalance, investor2.address)
+			// because 0% apr. the balance of wtbw should be equal tbt.
+			expect(await rtbt.balanceOf(investor.address)).to.be.equal(0)
+			expect(await rtbt.balanceOf(investor2.address)).to.be.equal(wtbtBalance)
 		})
 
 		it("Should not be able to wrap zero TBT", async () => {
