@@ -176,10 +176,25 @@ describe("redeem by Curve", async () => {
 			await wtbtPool.connect(investor).mint(amountToMint)
 			const POOL_MANAGER_ROLE = await wtbtPool.POOL_MANAGER_ROLE()
 			await wtbtPool.connect(admin).grantRole(POOL_MANAGER_ROLE, poolManager.address)
-			// 1%
-			await wtbtPool.connect(poolManager).setRedeemFeeRate(1000000)
 		})
 
+		it("Should be able to flash redeem for 3Crv with zero fee", async () => {
+			now = now + ONE_DAY
+			await mineBlockWithTimestamp(ethers.provider, now)
+
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			const underlyingAmount = await wtbtPool.getUnderlyingByCToken(amountToRedeem)
+			const stbtAmount = await treasury.getSTBTbyUnderlyingAmount(underlyingAmount)
+			const dy = await stbtSwapPool.get_dy(0, 1, stbtAmount)
+
+			await wtbtPool.connect(investor).flashRedeem(amountToRedeem, 1, 0)
+
+			const user3Crvalance = await _3Crv.balanceOf(investor.address)
+			expect(user3Crvalance).to.be.equal(dy)
+		})
+
+		// 1%
+		await wtbtPool.connect(poolManager).setRedeemFeeRate(1000000)
 		it("Should be able to flash redeem for 3Crv with fee", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
