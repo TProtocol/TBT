@@ -13,14 +13,13 @@
 - 108: (withdrawUnderlyingTokenByID) the withdrawal order is not ready for withdral.
 - 109: (initialize) the address is 0x0
 
-## Development Deoploy & Verify
+## Development Deploy & Verify
 For Goerli Testnet
 ``` bash
-yarn hardhat deoploy --network goerli
+yarn hardhat deploy --tags all --network goerli
 ```
 
 ### Initalize the contract
 ``` bash
 yarn hardhat run scripts/init-wTBT-TBT.js --network goerli
-yarn hardhat run scripts/init-Vault.js --network goerli
 ```
