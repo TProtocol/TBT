@@ -1,6 +1,6 @@
 const { getNamedAccounts } = require("hardhat")
 const USDCAddress = "0x43c7181e745Be7265EB103c5D69F1b7b4EF8763f" // Goerli Test USDC from MXP
-const wTBTAddress = "0xbad45474dB15EF71542732b276574A115BB6189b"
+const wTBTAddress = "0x92386fa4c3149f2450beA18C625e0f4ad4c6326e"
 
 // ABI Approve ERC20
 const ABI = [
