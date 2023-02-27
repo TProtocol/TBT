@@ -26,11 +26,6 @@ module.exports = {
 	},
 	networks: {
 		hardhat: { chainId: 1337 },
-		// bscTestnet: {
-		// 	url: "https://data-seed-prebsc-2-s3.binance.org:8545",
-		// 	accounts: [DEPLOYER_KEY, TREASURY_KEY, VAULT_KEY, FEE_COLLECTOR_KEY],
-		// 	chainId: 97,
-		// },
 		goerli: {
 			url: "https://eth-goerli.g.alchemy.com/v2/" + ALCHEMY_API_KEY,
 			chainId: 5,

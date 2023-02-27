@@ -6,19 +6,17 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	const { deploy, log } = deployments
 	const { deployer } = await getNamedAccounts()
 
-	const USDC = await deploy("ERC20Token", {
+	const wTBTPoolV2Permission = await deploy("wTBTPoolV2Permission", {
 		from: deployer,
 		log: true,
 		waitConfirmations: 2,
-		args: ["USDC", "USDC", 6],
 	})
-
-	log(`🎉 USDC deployed at ${USDC.address}`)
+	log(`🎉 wTBTPoolV2Permission deployed at ${wTBTPoolV2Permission.address}`)
 
 	if (!developmentChains.includes(network.name)) {
-		console.log("Verifying USDC on Etherscan...")
-		await verify(USDC.address, ["USDC", "USDC", 6])
+		console.log("Verifying wTBTPoolV2Permission on Etherscan...")
+		await verify(wTBTPoolV2Permission.address)
 	}
 }
 
-module.exports.tags = ["all", "USDC"]
+module.exports.tags = ["all", "WTBT"]

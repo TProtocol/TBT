@@ -19,9 +19,7 @@ yarn hardhat deoploy --network goerli
 ```
 
 ### Initalize the contract
-
-
-## BSC Testnet
-### Contract Address
-- TBTPoolV2Permission: https://testnet.bscscan.com/address/0x41EED588F071dABAF0A795cE64E647fa0d85140e
-- USDC: 0xbcBBB78D1B17A90499F2D4F2CF41f7f71Eb145Ac
+``` bash
+yarn hardhat run scripts/init-wTBT-TBT.js --network goerli
+yarn hardhat run scripts/init-Vault.js --network goerli
+```
