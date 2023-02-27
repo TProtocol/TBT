@@ -5,6 +5,7 @@ require("hardhat-deploy")
 require("solidity-coverage")
 require("hardhat-gas-reporter")
 require("@openzeppelin/hardhat-upgrades")
+require("@nomiclabs/hardhat-vyper")
 require("dotenv").config()
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
@@ -15,6 +16,9 @@ const FEE_COLLECTOR_KEY = process.env.FEE_COLLECTOR_KEY
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
 
 module.exports = {
+	vyper: {
+		compilers: [{ version: "0.2.15" }, { version: "0.2.4" }],
+	},
 	solidity: {
 		version: "0.8.7",
 		settings: {
