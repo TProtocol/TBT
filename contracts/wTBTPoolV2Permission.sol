@@ -350,6 +350,16 @@ contract wTBTPoolV2Permission is
 		return pendingRedeems[account];
 	}
 
+	/**
+	 * @dev get the amount of flash redeem from a give amount of wtbt
+	 * @param amount amount of cToken
+	 * @param j token of index for curve pool
+	 */
+	function getFlashRedeemAmountOut(uint256 amount, int128 j) public view returns (uint256) {
+		uint256 underlyingAmount = amount.mul(getTotalUnderlying()).div(cTokenTotalSupply);
+		return treasury.getRedeemAmountOutFromCurve(underlyingAmount, j);
+	}
+
 	/* ----------------------------- End of Getters ----------------------------- */
 
 	/* -------------------------------------------------------------------------- */

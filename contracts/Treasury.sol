@@ -119,6 +119,17 @@ contract Treasury is AccessControl {
 	}
 
 	/**
+	 * @dev get the exchange amount out from curve
+	 * @param amount amount of cToken
+	 * @param j token of index for curve pool
+	 */
+	function getRedeemAmountOutFromCurve(uint256 amount, int128 j) public view returns (uint256) {
+		uint256 stbtAmount = amount.mul(basis);
+		// From stbt to others
+		return curvePool.get_dy_underlying(0, j, stbtAmount);
+	}
+
+	/**
 	 * @dev if over than mint threshold, transfer all balance of underlying to mpMintPool
 	 */
 	function mintSTBT() external onlyRole(WTBTPOOL_ROLE) {

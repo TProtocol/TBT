@@ -208,7 +208,15 @@ describe("redeem by Curve", async () => {
 					.cTokenBalances(investor.address)
 				const underlyingAmount = await wtbtPool.getUnderlyingByCToken(amountToRedeem)
 				const stbtAmount = await treasury.getSTBTbyUnderlyingAmount(underlyingAmount)
+
+				const dyFromwTBT = await wtbtPool.getFlashRedeemAmountOut(
+					amountToRedeem,
+					tokenIndex
+				)
 				const dy = await stbtSwapPool.get_dy_underlying(0, tokenIndex, stbtAmount)
+
+				expect(dyFromwTBT).to.be.equal(dy)
+
 				const beforeBalance = await testTokenList[i].balanceOf(investor.address)
 
 				await wtbtPool.connect(investor).flashRedeem(amountToRedeem, tokenIndex, 0)
@@ -226,7 +234,14 @@ describe("redeem by Curve", async () => {
 					.cTokenBalances(investor.address)
 				const underlyingAmount = await wtbtPool.getUnderlyingByCToken(amountToRedeem)
 				const stbtAmount = await treasury.getSTBTbyUnderlyingAmount(underlyingAmount)
+
+				const dyFromwTBT = await wtbtPool.getFlashRedeemAmountOut(
+					amountToRedeem,
+					tokenIndex
+				)
 				const dy = await stbtSwapPool.get_dy_underlying(0, tokenIndex, stbtAmount)
+
+				expect(dyFromwTBT).to.be.equal(dy)
 
 				const fee = dy.mul(1000000).div(100000000)
 				const amountAfterFee = dy.sub(fee)

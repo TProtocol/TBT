@@ -1,6 +1,8 @@
 pragma solidity ^0.8.0;
 
 interface ITreasury {
+	function getRedeemAmountOutFromCurve(uint256, int128) external view returns (uint256);
+
 	function setRedeemPool(address) external;
 
 	function setMintPool(address) external;
