@@ -168,8 +168,8 @@ contract wTBTPoolV2Permission is
 		managerFeeCollector = _managerFeeCollector;
 
 		// const, reduce risk for now.
-		// It's 10%.
-		maxAPR = 10 ** 7;
+		// It's 6%.
+		maxAPR = 6 * 10 ** 6;
 
 		// default 3 days
 		processPeriod = 3 days;
