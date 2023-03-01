@@ -353,7 +353,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 	describe("Reward", async () => {
 		it("Should get all reward when only one user exists", async () => {
 			const stakedTime = ONE_YEAR
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%;
 			const amountToMint = ethers.utils.parseUnits("1000000", 6)
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
 			await mint(investor, amountToMint)
@@ -370,7 +370,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				.connect(investor)
 				.getPendingRedeem(investor.address)
 
-			const expected = amountToMint.mul(108).div(100)
+			const expected = amountToMint.mul(106).div(100)
 			// with 0.01% tolorence;
 			expect(pendingRedeem).to.be.within(
 				expected.mul(9999).div(10000),
@@ -380,7 +380,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 		it("Should get half the reward when two users staked the same amount", async () => {
 			const stakedTime = ONE_YEAR
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%;
 			const amountToMint = ethers.utils.parseUnits("1000000", 6)
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
 			await mint(investor, amountToMint)
@@ -407,7 +407,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 				pendingRedeem2.mul(10001).div(10000)
 			)
 
-			const expectedRedeem = amountToMint.mul(108).div(100)
+			const expectedRedeem = amountToMint.mul(106).div(100)
 			expect(pendingRedeem).to.be.within(
 				expectedRedeem.mul(9999).div(10000),
 				expectedRedeem.mul(10001).div(10000)
@@ -416,7 +416,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 		it("Should be equal for getCTokenByUnderlying and mint cToken", async () => {
 			const timepass = ONE_DAY
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%;
 			const amountToMint = ethers.utils.parseUnits("100000", 6)
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint * 2)
@@ -437,7 +437,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 		it("Should be equal for getUnderlyingByCToken and redeem cToken", async () => {
 			const timepass = ONE_DAY
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%;
 			const amountToMint = ethers.utils.parseUnits("100000", 6)
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
@@ -463,7 +463,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 		it("Should be token value always > 1", async () => {
 			const timepass = ONE_YEAR
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%;
 			const amountToMint = ethers.utils.parseUnits("100000", 6)
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
 			await mint(investor, amountToMint)
@@ -667,7 +667,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 
 		it("Should be able to claim correct 10% manager fee", async () => {
 			const timepass = ONE_YEAR
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%;
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%;
 			const amountToMint = ethers.utils.parseUnits("1000000", 6)
 
 			const managerFeeRate = ethers.utils.parseUnits("10", 6) // 10% manager fee
@@ -698,9 +698,9 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await wtbtPool.connect(admin).grantRole(APR_MANAGER_ROLE, poolManager.address)
 		})
 
-		it("Should not be able to change apr more then 10%", async () => {
-			await wtbtPool.connect(poolManager).setTargetAPR(10000000)
-			await expect(wtbtPool.connect(poolManager).setTargetAPR(100000000)).to.be.reverted
+		it("Should not be able to change apr more then 6%", async () => {
+			await wtbtPool.connect(poolManager).setTargetAPR(6000000)
+			await expect(wtbtPool.connect(poolManager).setTargetAPR(6000001)).to.be.reverted
 		})
 	})
 

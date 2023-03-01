@@ -294,7 +294,7 @@ describe("TBT Contract", async () => {
 		})
 
 		it("Should be able to transfer the balance", async () => {
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%
 
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
 			now = (await ethers.provider.getBlock("latest")).timestamp + ONE_YEAR
@@ -318,7 +318,7 @@ describe("TBT Contract", async () => {
 		})
 
 		it("Should be able to transfer some shares", async () => {
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%
 
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
 			now = (await ethers.provider.getBlock("latest")).timestamp + ONE_YEAR
@@ -362,7 +362,7 @@ describe("TBT Contract", async () => {
 
 			await rtbt.connect(investor).wrap(wtbtBalance)
 
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%
 
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
 			now = (await ethers.provider.getBlock("latest")).timestamp + ONE_YEAR
@@ -403,7 +403,7 @@ describe("TBT Contract", async () => {
 			await wtbtPool.connect(investor).approve(rtbt.address, wtbtBalance)
 			await rtbt.connect(investor).wrap(wtbtBalance)
 
-			const targetAPR = ethers.utils.parseUnits("8", 6) // 8%
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
 			now = (await ethers.provider.getBlock("latest")).timestamp + ONE_YEAR
 			await mineBlockWithTimestamp(ethers.provider, now)
