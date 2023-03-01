@@ -48,6 +48,7 @@ contract Treasury is AccessControl {
 	) {
 		require(_admin != address(0), "!_admin");
 		_setupRole(DEFAULT_ADMIN_ROLE, _admin);
+		_setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
 		_setRoleAdmin(MANAGER_ROLE, ADMIN_ROLE);
 
 		_setupRole(ADMIN_ROLE, _admin);

@@ -16,6 +16,7 @@ contract Vault is AccessControl {
 	constructor(address _admin, address _underlying) {
 		require(_admin != address(0), "!_admin");
 
+		_setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
 		_setupRole(DEFAULT_ADMIN_ROLE, _admin);
 		_setupRole(ADMIN_ROLE, _admin);
 

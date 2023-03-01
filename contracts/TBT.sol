@@ -44,6 +44,7 @@ contract TBT is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable 
 		wTBT = _wtbt;
 
 		require(admin != address(0), "103");
+		_setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
 		_setupRole(ADMIN_ROLE, admin);
 	}
 

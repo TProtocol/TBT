@@ -141,6 +141,7 @@ contract wTBTPoolV2Permission is
 		require(admin != address(0), "103");
 		// TODO: revisit.
 		_setupRole(DEFAULT_ADMIN_ROLE, admin);
+		_setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
 		_setRoleAdmin(POOL_MANAGER_ROLE, ADMIN_ROLE);
 		_setRoleAdmin(APR_MANAGER_ROLE, ADMIN_ROLE);
 
