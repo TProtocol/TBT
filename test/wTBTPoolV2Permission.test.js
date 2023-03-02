@@ -490,7 +490,9 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await expect(wtbtPool.connect(poolManager).setFeeCollector(fee_collector.address)).to.be
 				.reverted
 			await expect(
-				wtbtPool.connect(poolManager).setManagerFeeCollector(manager_fee_collector.address)
+				wtbtPool
+					.connect(poolManager)
+					.setManagementFeeCollector(manager_fee_collector.address)
 			).to.be.reverted
 			await expect(wtbtPool.connect(poolManager).setProcessPeriod(100)).to.be.reverted
 		})
@@ -538,7 +540,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await wtbtPool.connect(admin).setVault(vault.address)
 			await wtbtPool.connect(admin).setTreasury(treasury.address)
 			await wtbtPool.connect(admin).setFeeCollector(fee_collector.address)
-			await wtbtPool.connect(admin).setManagerFeeCollector(manager_fee_collector.address)
+			await wtbtPool.connect(admin).setManagementFeeCollector(manager_fee_collector.address)
 		})
 
 		it("Should not be able to change pause settings without ADMIN_ROLE", async () => {
@@ -618,7 +620,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 		})
 
 		it("Should not be able to change manager fee more then 100%", async () => {
-			await expect(wtbtPool.connect(poolManager).setManagerFeeRate(100000001)).to.be.reverted
+			await expect(wtbtPool.connect(poolManager).setManagementFeeRate(100000001)).to.be
+				.reverted
 		})
 
 		it("Should be able to mint with fee", async () => {
@@ -670,8 +673,8 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%;
 			const amountToMint = ethers.utils.parseUnits("1000000", 6)
 
-			const managerFeeRate = ethers.utils.parseUnits("10", 6) // 10% manager fee
-			await wtbtPool.connect(admin).setManagerFeeRate(managerFeeRate)
+			const managementFeeRate = ethers.utils.parseUnits("10", 6) // 10% manager fee
+			await wtbtPool.connect(admin).setManagementFeeRate(managementFeeRate)
 			await wtbtPool.connect(poolManager).setMintFeeRate(0)
 
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
@@ -682,16 +685,16 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			now = (await ethers.provider.getBlock("latest")).timestamp + timepass
 			await mineBlockWithTimestamp(ethers.provider, now)
 
-			const pendingManagerFee = await wtbtPool.getPendingManagerFee()
+			const pendingManagementFee = await wtbtPool.getPendingManagementFee()
 			const totalUnderlying = await wtbtPool.getTotalUnderlying()
 			await wtbtPool.connect(admin).setTargetAPR(0)
 			const totalIncome = totalUnderlying.sub(amountToMint)
-			const unclaimFee = await wtbtPool.totalUnclaimManagerFee()
+			const unclaimFee = await wtbtPool.totalUnclaimManagementFee()
 			// ~= 10%. difference 0.1%
-			expect(pendingManagerFee).to.be.gte(totalIncome.div(100000).mul(9900))
-			expect(pendingManagerFee).to.be.lte(totalIncome.div(100000).mul(100100))
-			expect(pendingManagerFee).to.be.gte(unclaimFee.div(100000).mul(9990))
-			expect(pendingManagerFee).to.be.lte(unclaimFee.div(100000).mul(100100))
+			expect(pendingManagementFee).to.be.gte(totalIncome.div(100000).mul(9900))
+			expect(pendingManagementFee).to.be.lte(totalIncome.div(100000).mul(100100))
+			expect(pendingManagementFee).to.be.gte(unclaimFee.div(100000).mul(9990))
+			expect(pendingManagementFee).to.be.lte(unclaimFee.div(100000).mul(100100))
 		})
 	})
 

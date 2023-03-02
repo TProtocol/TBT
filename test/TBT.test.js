@@ -387,10 +387,10 @@ describe("TBT Contract", async () => {
 			await rtbt.connect(investor).wrap(wtbtBalance)
 			const rTBTBalanceBefore = await rtbt.balanceOf(investor.address)
 
-			const managerFeeRate = ethers.utils.parseUnits("10", 6) // 10% manager fee
+			const managementFeeRate = ethers.utils.parseUnits("10", 6) // 10% manager fee
 			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%
 
-			await wtbtPool.connect(admin).setManagerFeeRate(managerFeeRate)
+			await wtbtPool.connect(admin).setManagementFeeRate(managementFeeRate)
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
 			now = (await ethers.provider.getBlock("latest")).timestamp + ONE_YEAR
 			await mineBlockWithTimestamp(ethers.provider, now)

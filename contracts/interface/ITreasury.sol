@@ -27,7 +27,7 @@ interface ITreasury {
 
 	function redeemAllSTBT() external;
 
-	function claimManagerFee(address, uint256) external;
+	function claimManagementFee(address, uint256) external;
 
 	function recoverERC20(address, uint256) external;
 }

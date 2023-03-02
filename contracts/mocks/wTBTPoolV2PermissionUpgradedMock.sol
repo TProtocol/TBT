@@ -52,7 +52,7 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	// Fee Collector, used to receive fee when mint or redeem.
 	address public feeCollector;
 	// Manager fee collector, used to receive manager fee.
-	address public managerFeeCollector;
+	address public managementFeeCollector;
 	// mp deposit address
 	address public mpDeposit;
 
@@ -69,7 +69,7 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	uint256 public mintFeeRate;
 
 	// It's used when call realizeReward.
-	uint256 public managerFeeRate;
+	uint256 public managementFeeRate;
 
 	// Pending redeems, value is the USDC amount, user can claim whenever the vault has enough USDC.
 	mapping(address => uint256) public pendingRedeems;
@@ -77,7 +77,7 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	// TODO: Can omit this, and calculate it from event.
 	uint256 public totalPendingRedeems;
 	// the claimable manager fee for protocol
-	uint256 public totalUnclaimManagerFee;
+	uint256 public totalUnclaimManagementFee;
 
 	// targetAPR: 0.1% => 100000 (10 ** 5)
 	// targetAPR: 10% => 10000000 (10 ** 7)
@@ -129,7 +129,7 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		address _treasury,
 		address _vault,
 		address _feeCollector,
-		address _managerFeeCollector
+		address _managementFeeCollector
 	) public initializer {
 		__AccessControl_init();
 		__ERC20_init(name, symbol);
@@ -159,12 +159,12 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		require(_vault != address(0), "109");
 		require(_treasury != address(0), "109");
 		require(_feeCollector != address(0), "109");
-		require(_managerFeeCollector != address(0), "109");
+		require(_managementFeeCollector != address(0), "109");
 
 		vault = IVault(_vault);
 		treasury = ITreasury(_treasury);
 		feeCollector = _feeCollector;
-		managerFeeCollector = _managerFeeCollector;
+		managementFeeCollector = _managementFeeCollector;
 
 		// const, reduce risk for now.
 		// It's 10%.
@@ -246,11 +246,11 @@ contract wTBTPoolV2PermissionUpgradedMock is
 
 	/**
 	 * @dev to set the collector of manager fee
-	 * @param _managerFeeCollector the address of manager collector
+	 * @param _managementFeeCollector the address of manager collector
 	 */
-	function setManagerFeeCollector(address _managerFeeCollector) external onlyRole(ADMIN_ROLE) {
-		require(_managerFeeCollector != address(0), "109");
-		managerFeeCollector = _managerFeeCollector;
+	function setManagementFeeCollector(address _managementFeeCollector) external onlyRole(ADMIN_ROLE) {
+		require(_managementFeeCollector != address(0), "109");
+		managementFeeCollector = _managementFeeCollector;
 	}
 
 	/**
@@ -273,13 +273,13 @@ contract wTBTPoolV2PermissionUpgradedMock is
 
 	/**
 	 * @dev to set the rate of manager fee
-	 * @param _managerFeeRate the rate. it should be multiply 10**6
+	 * @param _managementFeeRate the rate. it should be multiply 10**6
 	 */
-	function setManagerFeeRate(
-		uint256 _managerFeeRate
+	function setManagementFeeRate(
+		uint256 _managementFeeRate
 	) external onlyRole(POOL_MANAGER_ROLE) realizeReward {
-		require(_managerFeeRate <= FEE_COEFFICIENT, "manager fee rate should be less than 100%");
-		managerFeeRate = _managerFeeRate;
+		require(_managementFeeRate <= FEE_COEFFICIENT, "manager fee rate should be less than 100%");
+		managementFeeRate = _managementFeeRate;
 	}
 
 	/* -------------------------- End of Pool Settings -------------------------- */
@@ -358,9 +358,9 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	modifier realizeReward() {
 		if (cTokenTotalSupply != 0) {
 			uint256 totalInterest = getRPS().mul(block.timestamp.sub(lastCheckpoint));
-			uint256 managerIncome = totalInterest.mul(managerFeeRate).div(FEE_COEFFICIENT);
+			uint256 managerIncome = totalInterest.mul(managementFeeRate).div(FEE_COEFFICIENT);
 			totalUnderlying = totalUnderlying.add(totalInterest).sub(managerIncome);
-			totalUnclaimManagerFee = totalUnclaimManagerFee.add(managerIncome);
+			totalUnclaimManagementFee = totalUnclaimManagementFee.add(managerIncome);
 		}
 		lastCheckpoint = block.timestamp;
 		_;
@@ -369,9 +369,9 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	/**
 	 * @dev claim protocol manager fee
 	 */
-	function claimManagerFee() external realizeReward nonReentrant {
-		vault.withdrawToUser(managerFeeCollector, totalUnclaimManagerFee);
-		totalUnclaimManagerFee = 0;
+	function claimManagementFee() external realizeReward nonReentrant {
+		vault.withdrawToUser(managementFeeCollector, totalUnclaimManagementFee);
+		totalUnclaimManagementFee = 0;
 	}
 
 	/**

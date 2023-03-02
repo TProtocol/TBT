@@ -19,7 +19,7 @@ async function InitWTBT() {
 	const treasuryAddress = treasury.toString()
 	const vaultAddress = vault.toString()
 	const feeCollectorAddress = fee_collector.toString()
-	const managerFeeCollectorAddress = deployer.toString()
+	const managementFeeCollectorAddress = deployer.toString()
 	// set the parameters
 	const targetAPR = "4000000" // 4%
 	const mintFeeRate = "100000" // 0.1% => 100000
@@ -36,7 +36,7 @@ async function InitWTBT() {
 	// 	treasuryAddress,
 	// 	vaultAddress,
 	// 	feeCollectorAddress,
-	// 	managerFeeCollectorAddress
+	// 	managementFeeCollectorAddress
 	// )
 	// await tx.wait(2)
 	// console.log("wTBT initialized")

@@ -199,7 +199,7 @@ contract Treasury is AccessControl {
 	 * @param target Used to receive
 	 * @param amountToTarget Amount of underlying to transfer
 	 */
-	function claimManagerFee(
+	function claimManagementFee(
 		address target,
 		uint256 amountToTarget
 	) external onlyRole(WTBTPOOL_ROLE) {
