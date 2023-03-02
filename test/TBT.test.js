@@ -361,6 +361,7 @@ describe("TBT Contract", async () => {
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 
 			await rtbt.connect(investor).wrap(wtbtBalance)
+			const rTBTBalanceBefore = await rtbt.balanceOf(investor.address)
 
 			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%
 
@@ -370,15 +371,40 @@ describe("TBT Contract", async () => {
 
 			const underlyingAmount = await wtbtPool.getUnderlyingByCToken(wtbtBalance)
 			const initalCtokenToUnderlying = await wtbtPool.getInitalCtokenToUnderlying()
-			const rTBTBalanceBefore = await rtbt.balanceOf(investor.address)
-
-			expect(rTBTBalanceBefore).to.be.equal(underlyingAmount.mul(initalCtokenToUnderlying))
-
-			now = (await ethers.provider.getBlock("latest")).timestamp + ONE_HOUR
-			await mineBlockWithTimestamp(ethers.provider, now)
 
 			const rTBTBalanceAfter = await rtbt.balanceOf(investor.address)
-			expect(rTBTBalanceAfter).to.be.gt(rTBTBalanceBefore)
+
+			expect(rTBTBalanceAfter).to.be.equal(underlyingAmount.mul(initalCtokenToUnderlying))
+
+			// ~= 6%. difference 0.1%
+			expect(rTBTBalanceAfter).to.be.gt(rTBTBalanceBefore.mul(105900).div(100000))
+			expect(rTBTBalanceAfter).to.be.lt(rTBTBalanceBefore.mul(106100).div(100000))
+		})
+
+		it("Should be rebase balance with APR and manager fee", async () => {
+			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
+
+			await rtbt.connect(investor).wrap(wtbtBalance)
+			const rTBTBalanceBefore = await rtbt.balanceOf(investor.address)
+
+			const managerFeeRate = ethers.utils.parseUnits("10", 6) // 10% manager fee
+			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%
+
+			await wtbtPool.connect(admin).setManagerFeeRate(managerFeeRate)
+			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
+			now = (await ethers.provider.getBlock("latest")).timestamp + ONE_YEAR
+			await mineBlockWithTimestamp(ethers.provider, now)
+
+			const underlyingAmount = await wtbtPool.getUnderlyingByCToken(wtbtBalance)
+			const initalCtokenToUnderlying = await wtbtPool.getInitalCtokenToUnderlying()
+
+			const rTBTBalanceAfter = await rtbt.balanceOf(investor.address)
+
+			expect(rTBTBalanceAfter).to.be.equal(underlyingAmount.mul(initalCtokenToUnderlying))
+
+			// ~= 5.4%. difference 0.1%
+			expect(rTBTBalanceAfter).to.be.gt(rTBTBalanceBefore.mul(105300).div(100000))
+			expect(rTBTBalanceAfter).to.be.lt(rTBTBalanceBefore.mul(105600).div(100000))
 		})
 	})
 
