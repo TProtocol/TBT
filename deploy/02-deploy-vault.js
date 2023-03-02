@@ -1,13 +1,15 @@
 const { getNamedAccounts, deployments, network } = require("hardhat")
-const { developmentChains, GoerliAddressConfig } = require("../helper-hardhat-config")
+const { developmentChains, AddressConfig, VaultId } = require("../helper-hardhat-config")
 const { verify } = require("../helper-function")
 
 module.exports = async ({ getNamedAccounts, deployments }) => {
 	const { deploy, log } = deployments
 	const { deployer } = await getNamedAccounts()
 
-	const vaultArgs = [GoerliAddressConfig.adminAddress, GoerliAddressConfig.underlyingAddress]
-	const vault = await deploy("Vault", {
+	const config = AddressConfig[network.config.chainId]
+
+	const vaultArgs = [config.adminAddress, config.underlyingAddress]
+	const vault = await deploy(VaultId, {
 		from: deployer,
 		log: true,
 		waitConfirmations: 2,
