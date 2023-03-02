@@ -294,7 +294,19 @@ contract wTBTPoolV2Permission is
 	 * @dev get total underly token amount
 	 */
 	function getTotalUnderlying() public view returns (uint256) {
-		return totalUnderlying.add(getRPS().mul(block.timestamp.sub(lastCheckpoint)));
+		// need include manager fee
+		uint256 totalInterest = getRPS().mul(block.timestamp.sub(lastCheckpoint));
+		uint256 managerIncome = totalInterest.mul(managerFeeRate).div(FEE_COEFFICIENT);
+		return totalUnderlying.add(totalInterest).sub(managerIncome);
+	}
+	
+	/**
+	 * @dev get pending manager fee
+	 */
+	function getPendingManagerFee() public view returns (uint256) {
+		// need include manager fee
+		uint256 totalInterest = getRPS().mul(block.timestamp.sub(lastCheckpoint));
+		return totalInterest.mul(managerFeeRate).div(FEE_COEFFICIENT);
 	}
 
 	/**
@@ -381,7 +393,7 @@ contract wTBTPoolV2Permission is
 	/**
 	 * @dev claim protocol's manager fee
 	 */
-	function claimManagerFee() external realizeReward nonReentrant {
+	function claimManagerFee() external realizeReward nonReentrant onlyRole(POOL_MANAGER_ROLE) {
 		treasury.claimManagerFee(managerFeeCollector, totalUnclaimManagerFee);
 		totalUnclaimManagerFee = 0;
 	}

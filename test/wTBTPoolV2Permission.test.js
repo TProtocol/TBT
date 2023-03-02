@@ -682,13 +682,16 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			now = (await ethers.provider.getBlock("latest")).timestamp + timepass
 			await mineBlockWithTimestamp(ethers.provider, now)
 
-			const beforeTotalUnderlying = await wtbtPool.getTotalUnderlying()
+			const pendingManagerFee = await wtbtPool.getPendingManagerFee()
+			const totalUnderlying = await wtbtPool.getTotalUnderlying()
 			await wtbtPool.connect(admin).setTargetAPR(0)
+			const totalIncome = totalUnderlying.sub(amountToMint)
 			const unclaimFee = await wtbtPool.totalUnclaimManagerFee()
-			const income = beforeTotalUnderlying.sub(amountToMint)
-			// ~= 10%
-			expect(unclaimFee).to.be.gte(income.mul(99000).div(1000000))
-			expect(unclaimFee).to.be.lte(income.mul(100100).div(1000000))
+			// ~= 10%. difference 0.1%
+			expect(pendingManagerFee).to.be.gte(totalIncome.div(100000).mul(9900))
+			expect(pendingManagerFee).to.be.lte(totalIncome.div(100000).mul(100100))
+			expect(pendingManagerFee).to.be.gte(unclaimFee.div(100000).mul(9990))
+			expect(pendingManagerFee).to.be.lte(unclaimFee.div(100000).mul(100100))
 		})
 	})
 
