@@ -53,20 +53,20 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	address public feeCollector;
 	// Manager fee collector, used to receive manager fee.
 	address public managementFeeCollector;
-	// mp deposit address
-	address public mpDeposit;
 
 	// redeemFeeRate: 0.1% => 100000 (10 ** 5)
 	// redeemFeeRate: 10% => 10000000 (10 ** 7)
 	// redeemFeeRate: 100% => 100000000 (10 ** 8)
 	// It's used when call redeemUnderlyingToken method.
 	uint256 public redeemFeeRate;
+	uint256 public redeemMPFeeRate;
 
 	// mintFeeRate: 0.1% => 100000 (10 ** 5)
 	// mintFeeRate: 10% => 10000000 (10 ** 7)
 	// mintFeeRate: 100% => 100000000 (10 ** 8)
 	// It's used when call mint method.
 	uint256 public mintFeeRate;
+	uint256 public mintInterestCostFeeRate;
 
 	// It's used when call realizeReward.
 	uint256 public managementFeeRate;
@@ -100,6 +100,9 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		uint256 timestamp;
 		address user;
 		uint256 underlyingAmount;
+		uint256 redeemAmountAfterFee;
+		uint256 MPFee;
+		uint256 protocolFee;
 		// False not redeem, or True.
 		bool isDone;
 	}
@@ -112,10 +115,14 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		uint256 timestamp,
 		address indexed user,
 		uint256 cTokenAmount,
-		uint256 underlyingAmount
+		uint256 underlyingAmount,
+		uint256 redeemAmountAfterFee,
+		uint256 MPFee,
+		uint256 protocolFee
 	);
 
-	event RedeemUnderlyingToken(address indexed user, uint256 amount, uint256 fee);
+	event RedeemUnderlyingToken(address indexed user, uint256 amount, uint256 fee, uint256 id);
+	event FlashRedeem(address indexed user, int128 j, uint256 amount);
 
 	// Treasury: When user mint cToken, treasury will receive USDC.
 	// Vault: When user redeem cToken, vault will pay USDC.
@@ -140,6 +147,7 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		require(admin != address(0), "103");
 		// TODO: revisit.
 		_setupRole(DEFAULT_ADMIN_ROLE, admin);
+		_setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
 		_setRoleAdmin(POOL_MANAGER_ROLE, ADMIN_ROLE);
 		_setRoleAdmin(APR_MANAGER_ROLE, ADMIN_ROLE);
 
@@ -167,8 +175,8 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		managementFeeCollector = _managementFeeCollector;
 
 		// const, reduce risk for now.
-		// It's 10%.
-		maxAPR = 10 ** 7;
+		// It's 6%.
+		maxAPR = 6 * 10 ** 6;
 
 		// default 3 days
 		processPeriod = 3 days;
@@ -177,45 +185,6 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	/* -------------------------------------------------------------------------- */
 	/*                                Admin Settings                               */
 	/* -------------------------------------------------------------------------- */
-
-	// Pause the contract. Revert if already paused.
-	function pause() external onlyRole(ADMIN_ROLE) {
-		PausableUpgradeable._pause();
-	}
-
-	// Unpause the contract. Revert if already unpaused.
-	function unpause() external onlyRole(ADMIN_ROLE) {
-		PausableUpgradeable._unpause();
-	}
-
-	/* -------------------------------------------------------------------------- */
-	/*                                Pool Settings                               */
-	/* -------------------------------------------------------------------------- */
-
-	/**
-	 * @dev to set APR
-	 * @param _targetAPR the amount of APR. it should be multiply 10**6
-	 */
-	function setTargetAPR(uint256 _targetAPR) external onlyRole(APR_MANAGER_ROLE) realizeReward {
-		require(_targetAPR <= maxAPR, "target apr should be less than max apr");
-		targetAPR = _targetAPR;
-	}
-
-	/**
-	 * @dev to set the period of processing
-	 * @param _processPeriod the period of processing. it's second.
-	 */
-	function setProcessPeriod(uint256 _processPeriod) external onlyRole(POOL_MANAGER_ROLE) {
-		processPeriod = _processPeriod;
-	}
-
-	/**
-	 * @dev to set the capital lower bound
-	 * @param _capitalLowerBound the capital lower bound. If lower bound is $1m USDC, the value should be 1,000,000 * 10**6
-	 */
-	function setCapitalLowerBound(uint256 _capitalLowerBound) external onlyRole(POOL_MANAGER_ROLE) {
-		capitalLowerBound = _capitalLowerBound;
-	}
 
 	/**
 	 * @dev to set the vault
@@ -253,6 +222,45 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		managementFeeCollector = _managementFeeCollector;
 	}
 
+	/* -------------------------------------------------------------------------- */
+	/*                                Pool Settings                               */
+	/* -------------------------------------------------------------------------- */
+
+	// Pause the contract. Revert if already paused.
+	function pause() external onlyRole(POOL_MANAGER_ROLE) {
+		PausableUpgradeable._pause();
+	}
+
+	// Unpause the contract. Revert if already unpaused.
+	function unpause() external onlyRole(POOL_MANAGER_ROLE) {
+		PausableUpgradeable._unpause();
+	}
+
+	/**
+	 * @dev to set APR
+	 * @param _targetAPR the amount of APR. it should be multiply 10**6
+	 */
+	function setTargetAPR(uint256 _targetAPR) external onlyRole(APR_MANAGER_ROLE) realizeReward {
+		require(_targetAPR <= maxAPR, "target apr should be less than max apr");
+		targetAPR = _targetAPR;
+	}
+
+	/**
+	 * @dev to set the period of processing
+	 * @param _processPeriod the period of processing. it's second.
+	 */
+	function setProcessPeriod(uint256 _processPeriod) external onlyRole(POOL_MANAGER_ROLE) {
+		processPeriod = _processPeriod;
+	}
+
+	/**
+	 * @dev to set the capital lower bound
+	 * @param _capitalLowerBound the capital lower bound. If lower bound is $1m USDC, the value should be 1,000,000 * 10**6
+	 */
+	function setCapitalLowerBound(uint256 _capitalLowerBound) external onlyRole(POOL_MANAGER_ROLE) {
+		capitalLowerBound = _capitalLowerBound;
+	}
+
 	/**
 	 * @dev to set the rate of mint fee
 	 * @param _mintFeeRate the rate. it should be multiply 10**6
@@ -263,12 +271,30 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	}
 
 	/**
+	 * @dev to set the rate of interest cost mint fee
+	 * @param _mintInterestCostFeeRate the rate. it should be multiply 10**6
+	 */
+	function setMintInterestCostFeeRate(uint256 _mintInterestCostFeeRate) external onlyRole(POOL_MANAGER_ROLE) {
+		require(_mintInterestCostFeeRate <= maxMintFeeRate, "Mint fee rate should be less than 1%");
+		mintInterestCostFeeRate = _mintInterestCostFeeRate;
+	}
+
+	/**
 	 * @dev to set the rate of redeem fee
 	 * @param _redeemFeeRate the rate. it should be multiply 10**6
 	 */
 	function setRedeemFeeRate(uint256 _redeemFeeRate) external onlyRole(POOL_MANAGER_ROLE) {
 		require(_redeemFeeRate <= maxRedeemFeeRate, "redeem fee rate should be less than 1%");
 		redeemFeeRate = _redeemFeeRate;
+	}
+
+	/**
+	 * @dev to set the rate of MP redeem fee
+	 * @param _redeemMPFeeRate the rate. it should be multiply 10**6
+	 */
+	function setRedeemMPFeeRate(uint256 _redeemMPFeeRate) external onlyRole(POOL_MANAGER_ROLE) {
+		require(_redeemMPFeeRate <= maxRedeemFeeRate, "redeem fee rate should be less than 1%");
+		redeemMPFeeRate = _redeemMPFeeRate;
 	}
 
 	/**
@@ -292,7 +318,19 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	 * @dev get total underly token amount
 	 */
 	function getTotalUnderlying() public view returns (uint256) {
-		return totalUnderlying.add(getRPS().mul(block.timestamp.sub(lastCheckpoint)));
+		// need include manager fee
+		uint256 totalInterest = getRPS().mul(block.timestamp.sub(lastCheckpoint));
+		uint256 managerIncome = totalInterest.mul(managementFeeRate).div(FEE_COEFFICIENT);
+		return totalUnderlying.add(totalInterest).sub(managerIncome);
+	}
+	
+	/**
+	 * @dev get pending manager fee
+	 */
+	function getPendingManagementFee() public view returns (uint256) {
+		// need include manager fee
+		uint256 totalInterest = getRPS().mul(block.timestamp.sub(lastCheckpoint));
+		return totalInterest.mul(managementFeeRate).div(FEE_COEFFICIENT);
 	}
 
 	/**
@@ -349,6 +387,16 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		return pendingRedeems[account];
 	}
 
+	/**
+	 * @dev get the amount of flash redeem from a give amount of wtbt
+	 * @param amount amount of cToken
+	 * @param j token of index for curve pool
+	 */
+	function getFlashRedeemAmountOut(uint256 amount, int128 j) public view returns (uint256) {
+		uint256 underlyingAmount = amount.mul(getTotalUnderlying()).div(cTokenTotalSupply);
+		return treasury.getRedeemAmountOutFromCurve(underlyingAmount, j);
+	}
+
 	/* ----------------------------- End of Getters ----------------------------- */
 
 	/* -------------------------------------------------------------------------- */
@@ -367,10 +415,10 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	}
 
 	/**
-	 * @dev claim protocol manager fee
+	 * @dev claim protocol's manager fee
 	 */
-	function claimManagementFee() external realizeReward nonReentrant {
-		vault.withdrawToUser(managementFeeCollector, totalUnclaimManagementFee);
+	function claimManagementFee() external realizeReward nonReentrant onlyRole(POOL_MANAGER_ROLE) {
+		treasury.claimManagementFee(managementFeeCollector, totalUnclaimManagementFee);
 		totalUnclaimManagementFee = 0;
 	}
 
@@ -378,9 +426,34 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	 * @dev mint wTBT
 	 * @param amount the amount of underlying token, 1 USDC = 10**6
 	 */
-	function mint(uint256 amount) external whenNotPaused realizeReward nonReentrant {
+	function mint(uint256 amount) external {
+		_mintFor(amount, msg.sender);
+	}
+
+	/**
+	 * @dev mint wTBT
+	 * @param amount the amount of underlying token, 1 USDC = 10**6
+	 * @param receiver the address be used to receive tbt
+	 */
+	function mintFor(uint256 amount, address receiver) external {
+		_mintFor(amount, receiver);
+	}
+
+	/**
+	 * @dev mint wTBT
+	 * @param amount the amount of underlying token, 1 USDC = 10**6
+	 * @param receiver the address be used to receive tbt
+	 */
+	function _mintFor(
+		uint256 amount,
+		address receiver
+	) internal whenNotPaused realizeReward nonReentrant {
 		underlyingToken.safeTransferFrom(msg.sender, address(treasury), amount);
 		treasury.mintSTBT();
+
+		// Prepaid fees while waiting for STBT
+		uint256 interestCost = amount.mul(mintInterestCostFeeRate).div(FEE_COEFFICIENT);
+		amount = amount.sub(interestCost);
 
 		uint256 cTokenAmount;
 		if (cTokenTotalSupply == 0 || totalUnderlying == 0) {
@@ -393,7 +466,7 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		uint256 feeAmount = cTokenAmount.mul(mintFeeRate).div(FEE_COEFFICIENT);
 		uint256 amountAfterFee = cTokenAmount.sub(feeAmount);
 
-		_mint(msg.sender, amountAfterFee);
+		_mint(receiver, amountAfterFee);
 
 		if (feeAmount != 0) {
 			_mint(feeCollector, feeAmount);
@@ -415,10 +488,14 @@ contract wTBTPoolV2PermissionUpgradedMock is
 
 		require(totalUnderlying.sub(underlyingAmount) >= capitalLowerBound, "102");
 
-		treasury.redeemSTBT(underlyingAmount);
-
 		_burn(msg.sender, amount);
 		totalUnderlying = totalUnderlying.sub(underlyingAmount);
+
+		treasury.redeemSTBT(underlyingAmount);
+
+		uint256 redeemFeeAmount = underlyingAmount.mul(redeemFeeRate).div(FEE_COEFFICIENT);
+		uint256 redeemMPFeeAmount = underlyingAmount.mul(redeemMPFeeRate).div(FEE_COEFFICIENT);
+		uint256 amountAfterFee = underlyingAmount.sub(redeemFeeAmount).sub(redeemMPFeeAmount);
 
 		redeemIndex++;
 		redeemDetails[redeemIndex] = RedeemDetail({
@@ -426,15 +503,52 @@ contract wTBTPoolV2PermissionUpgradedMock is
 			timestamp: block.timestamp,
 			user: msg.sender,
 			underlyingAmount: underlyingAmount,
+			redeemAmountAfterFee: amountAfterFee,
+			MPFee: redeemMPFeeAmount,
+			protocolFee: redeemFeeAmount,
 			isDone: false
 		});
 
 		// Instead of transferring underlying token to user, we record the pending redeem amount.
-		pendingRedeems[msg.sender] = pendingRedeems[msg.sender].add(underlyingAmount);
+		pendingRedeems[msg.sender] = pendingRedeems[msg.sender].add(amountAfterFee);
 
-		totalPendingRedeems = totalPendingRedeems.add(underlyingAmount);
+		totalPendingRedeems = totalPendingRedeems.add(amountAfterFee);
 
-		emit RedeemRequested(redeemIndex, block.timestamp, msg.sender, amount, underlyingAmount);
+		emit RedeemRequested(redeemIndex, block.timestamp, msg.sender, amount, underlyingAmount, amountAfterFee, redeemMPFeeAmount, redeemFeeAmount);
+	}
+
+	/**
+	 * @dev redeem wTBT by Curve
+	 * @param amount the amount of cToken, 1 cToken = 10**18, which eaquals to 1 USDC (if not interest).
+	 * @param j token of index for curve pool
+	 * @param minReturn the minimum amount of return
+	 */
+	function flashRedeem(
+		uint256 amount,
+		int128 j,
+		uint256 minReturn
+	) external whenNotPaused realizeReward nonReentrant {
+		require(amount <= cTokenBalances[msg.sender], "100");
+		require(totalUnderlying >= 0, "101");
+		require(cTokenTotalSupply > 0, "104");
+
+		uint256 underlyingAmount = amount.mul(totalUnderlying).div(cTokenTotalSupply);
+
+		require(totalUnderlying.sub(underlyingAmount) >= capitalLowerBound, "102");
+
+		_burn(msg.sender, amount);
+		totalUnderlying = totalUnderlying.sub(underlyingAmount);
+		treasury.redeemSTBTByCurveWithFee(
+			underlyingAmount,
+			j,
+			minReturn,
+			msg.sender,
+			redeemFeeRate,
+			FEE_COEFFICIENT,
+			feeCollector
+		);
+
+		emit FlashRedeem(msg.sender, j, underlyingAmount);
 	}
 
 	/**
@@ -444,23 +558,21 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	function redeemUnderlyingTokenById(uint256 _id) external whenNotPaused nonReentrant {
 		require(redeemDetails[_id].user == msg.sender, "105");
 		require(redeemDetails[_id].isDone == false, "106");
-		require(
-			underlyingToken.balanceOf(address(vault)) >= redeemDetails[_id].underlyingAmount,
-			"107"
-		);
 		require(redeemDetails[_id].timestamp + processPeriod <= block.timestamp, "108");
 
-		uint256 amount = redeemDetails[_id].underlyingAmount;
+		uint256 redeemAmountAfterFee = redeemDetails[_id].redeemAmountAfterFee;
+		uint256 protocolFee = redeemDetails[_id].protocolFee;
 
 		redeemDetails[_id].isDone = true;
 
-		pendingRedeems[msg.sender] = pendingRedeems[msg.sender].sub(amount);
-		totalPendingRedeems = totalPendingRedeems.sub(amount);
-		uint256 feeAmount = amount.mul(redeemFeeRate).div(FEE_COEFFICIENT);
-		uint256 amountAfterFee = amount.sub(feeAmount);
-		vault.withdrawToUser(msg.sender, amountAfterFee);
-		vault.withdrawToUser(feeCollector, feeAmount);
-		emit RedeemUnderlyingToken(msg.sender, amount, amountAfterFee);
+		pendingRedeems[msg.sender] = pendingRedeems[msg.sender].sub(redeemAmountAfterFee);
+		totalPendingRedeems = totalPendingRedeems.sub(redeemAmountAfterFee);
+
+		// the MP fee had been charge.
+		vault.withdrawToUser(msg.sender, redeemAmountAfterFee);
+		vault.withdrawToUser(feeCollector, protocolFee);
+
+		emit RedeemUnderlyingToken(msg.sender, redeemAmountAfterFee, protocolFee, _id);
 	}
 
 	/* ---------------------------- End of Core Logic --------------------------- */

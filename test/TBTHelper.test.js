@@ -48,6 +48,7 @@ describe("TBTHelper.test Contract", async () => {
 			manager_fee_collector,
 			mpMintPool,
 			mpRedeemPool,
+			interestCostFeeCollector,
 		] = await ethers.getSigners()
 		now = (await ethers.provider.getBlock("latest")).timestamp
 		const ERC20Token = await ethers.getContractFactory("ERC20Token")

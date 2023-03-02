@@ -640,6 +640,27 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			expect(await usdcToken.balanceOf(mpMintPool.address)).to.equal(amountToMint)
 		})
 
+		it("Should be able to mint with fee and interest cost fee", async () => {
+			// 1%
+			await wtbtPool.connect(poolManager).setMintInterestCostFeeRate(1000000)
+
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await wtbtPool.connect(investor).mint(amountToMint)
+
+			const afterInterestCostFee = amountToMint.mul(99000000).div(100000000)
+			// 1% fee -> 99 cToken
+			expect(await wtbtPool.balanceOf(investor.address)).to.equal(
+				afterInterestCostFee.mul(99000000).div(100000000).mul(1000000000000)
+			)
+			// collect fee
+			expect(await wtbtPool.balanceOf(fee_collector.address)).to.equal(
+				afterInterestCostFee.mul(1000000).div(100000000).mul(1000000000000)
+			)
+
+			expect(await usdcToken.balanceOf(mpMintPool.address)).to.equal(amountToMint)
+		})
+
 		it("Should be able to redeem with fee", async () => {
 			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
@@ -666,6 +687,37 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			expect(afterFeeCollectBalance).to.equal(
 				beforeFeeCollectBalance.add(pendingRedeem.sub(redeemUnderlyingAmount))
 			)
+		})
+
+		it("Should be able to redeem with fee and MP fee", async () => {
+			await wtbtPool.connect(poolManager).setRedeemMPFeeRate(1000000)
+
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await wtbtPool.connect(investor).mint(amountToMint)
+
+			const beforeFeeCollectBalance = await usdcToken.balanceOf(fee_collector.address)
+			const beforeInvestorBalance = await usdcToken.balanceOf(investor.address)
+
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await wtbtPool.connect(investor).redeem(amountToRedeem)
+
+			const orderId = await wtbtPool.redeemIndex()
+
+			// equal 100 * ( 1 - 0.1 - 0.1)
+			const pendingRedeem = (await wtbtPool.connect(investor).redeemDetails(orderId))
+				.redeemAmountAfterFee
+			await wtbtPool.connect(investor).redeemUnderlyingTokenById(orderId)
+
+			expect(await usdcToken.balanceOf(investor.address)).to.equal(
+				beforeInvestorBalance.add(pendingRedeem)
+			)
+
+			const protocolFee = (await wtbtPool.connect(investor).redeemDetails(orderId))
+				.protocolFee
+
+			const afterFeeCollectBalance = await usdcToken.balanceOf(fee_collector.address)
+			expect(afterFeeCollectBalance).to.equal(beforeFeeCollectBalance.add(protocolFee))
 		})
 
 		it("Should be able to claim correct 10% manager fee", async () => {

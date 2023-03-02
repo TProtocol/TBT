@@ -14,6 +14,9 @@ const GoerliAddressConfig = {
 	feeCollectorAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
 	managementFeeCollecorAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
 	aprManagerAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
+
+	wTBTPoolV2PermissionProxyAddress: "0x1CF77a8435B9cE3e2485599f862a3823f378c077",
+	TBTProxyAddress: "0x9E93503fFAd054722053Aa47110ce73db771Cfd5",
 }
 
 // Mainnet Settings
@@ -30,6 +33,9 @@ const MainnetAddressConfig = {
 	feeCollectorAddress: "0xE4f55830f92685Ba9c321aE4aCe137d4b030626D",
 	managementFeeCollecorAddress: "0x29723F1D8824f5DE6c53819A658770afC7eF4F48",
 	aprManagerAddress: "0xA3404a7CB0Bbbda93581F2d2f9e5e0f3b9421bAC",
+
+	wTBTPoolV2PermissionProxyAddress: "0x1CF77a8435B9cE3e2485599f862a3823f378c077",
+	TBTProxyAddress: "0x9E93503fFAd054722053Aa47110ce73db771Cfd5",
 }
 
 // Sepolia Settings
