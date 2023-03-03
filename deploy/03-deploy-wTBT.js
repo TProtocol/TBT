@@ -59,6 +59,16 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	let APR_ROLE = await wTBTPoolV2PermissionProxy.APR_MANAGER_ROLE()
 	await wTBTPoolV2PermissionProxy.grantRole(APR_ROLE, config.aprManagerAddress)
 
+	// set fee
+	// 0.1% mint fee
+	await wTBTPoolV2PermissionProxy.setMintFeeRate(100000)
+	// 0.2% redeem protocol fee
+	await wTBTPoolV2PermissionProxy.setRedeemFeeRate(200000)
+	// 0.1% mp redeem fee
+	await wTBTPoolV2PermissionProxy.setRedeemMPFeeRate(100000)
+	// 0.05% interest cost fee
+	await wTBTPoolV2PermissionProxy.setMintInterestCostFeeRate(50000)
+
 	if (!developmentChains.includes(network.name)) {
 		console.log("Verifying wTBTPoolV2Permission on Etherscan...")
 		await verify(wTBTPoolV2PermissionProxy.address)
