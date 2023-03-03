@@ -203,24 +203,24 @@ contract TBT is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable 
 	}
 
 	/**
-	 * @dev wrap wTBT to TBT
-	 * @param _wtbtAmount the amount of wrapping
+	 * @dev unwrap wTBT to TBT
+	 * @param _wtbtAmount the amount of unwrapping
 	 */
-	function wrap(uint256 _wtbtAmount) external {
-		_wrapFor(_wtbtAmount, msg.sender);
+	function unwrap(uint256 _wtbtAmount) external {
+		_unwrapFor(_wtbtAmount, msg.sender);
 	}
 
 	/**
-	 * @dev wrap wTBT to TBT
-	 * @param _wtbtAmount the amount of wrapping
+	 * @dev unwrap wTBT to TBT
+	 * @param _wtbtAmount the amount of unwrapping
 	 * @param user receiver
 	 */
-	function wrapFor(uint256 _wtbtAmount, address user) external {
-		_wrapFor(_wtbtAmount, user);
+	function unwrapFor(uint256 _wtbtAmount, address user) external {
+		_unwrapFor(_wtbtAmount, user);
 	}
 
-	function _wrapFor(uint256 _wtbtAmount, address user) internal {
-		require(_wtbtAmount > 0, "can't wrap zero wTBT");
+	function _unwrapFor(uint256 _wtbtAmount, address user) internal {
+		require(_wtbtAmount > 0, "can't unwrap zero wTBT");
 		wTBT.safeTransferFrom(msg.sender, address(this), _wtbtAmount);
 		_mintShares(user, _wtbtAmount);
 
@@ -228,10 +228,10 @@ contract TBT is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable 
 	}
 
 	/**
-	 * @dev unwrap wTBT to TBT
+	 * @dev wrap TBT to wTBT
 	 * @param _amount the amount of wrapping
 	 */
-	function unwrap(uint256 _amount) external {
+	function wrap(uint256 _amount) external {
 		// equal shares
 		uint256 wtbtAmount = getSharesByAmount(_amount);
 		require(wtbtAmount > 0, "can't wrap zero TBT");
@@ -242,9 +242,9 @@ contract TBT is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradeable 
 	}
 
 	/**
-	 * @dev unwrap all wTBT to TBT
+	 * @dev wrap all TBT to wTBT
 	 */
-	function unwrapAll() external {
+	function wrapAll() external {
 		uint256 userBalance = balanceOf(msg.sender);
 		uint256 shareAmount = sharesOf(msg.sender);
 

@@ -53,7 +53,7 @@ contract TBTHelper is AccessControl {
 		uint256 mintAmount = _after.sub(_before);
 
 		IERC20(wtbt).approve(tbt, mintAmount);
-		ITBT(tbt).wrapFor(mintAmount, msg.sender);
+		ITBT(tbt).unwrapFor(mintAmount, msg.sender);
 	}
 
 	/**

@@ -202,8 +202,8 @@ contract TBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradea
 	}
 
 	// wTBT -> TBT
-	function wrap(uint256 _wtbtAmount) external {
-		require(_wtbtAmount > 0, "can't wrap zero wTBT");
+	function unwrap(uint256 _wtbtAmount) external {
+		require(_wtbtAmount > 0, "can't unwrap zero wTBT");
 		wTBT.safeTransferFrom(msg.sender, address(this), _wtbtAmount);
 		_mintShares(msg.sender, _wtbtAmount);
 
@@ -211,7 +211,7 @@ contract TBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradea
 	}
 
 	// wrap TBT -> wTBT
-	function unwrap(uint256 _amount) external {
+	function wrap(uint256 _amount) external {
 		// equal shares
 		uint256 wtbtAmount = getSharesByAmount(_amount);
 		require(wtbtAmount > 0, "can't wrap zero TBT");
@@ -222,7 +222,7 @@ contract TBTMock is ERC20Upgradeable, PausableUpgradeable, AccessControlUpgradea
 	}
 
 	// wrap all TBT -> wTBT
-	function unwrapAll() external {
+	function wrapAll() external {
 		uint256 userBalance = balanceOf(msg.sender);
 		uint256 shareAmount = sharesOf(msg.sender);
 

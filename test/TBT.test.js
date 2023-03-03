@@ -123,7 +123,7 @@ describe("TBT Contract", async () => {
 		await vault.connect(admin).grantRole(WTBTPOOL_ROLE, wtbtPool.address)
 	})
 
-	describe("Wrap", async () => {
+	describe("Unwrap", async () => {
 		beforeEach(async () => {
 			await wtbtPool
 				.connect(investor)
@@ -132,7 +132,7 @@ describe("TBT Contract", async () => {
 				.connect(investor2)
 				.approve(rtbt.address, ethers.utils.parseUnits("100000000", 18))
 		})
-		it("Should be able to wrap TBT from TBT", async () => {
+		it("Should be able to unwrap TBT from wTBT", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
 			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
@@ -141,12 +141,12 @@ describe("TBT Contract", async () => {
 
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 
-			await rtbt.connect(investor).wrap(wtbtBalance)
+			await rtbt.connect(investor).unwrap(wtbtBalance)
 			// because 0% apr. the balance of wtbw should be equal tbt.
 			expect(await rtbt.balanceOf(investor.address)).to.be.equal(wtbtBalance)
 		})
 
-		it("Should be able to wrapFor TBT from TBT", async () => {
+		it("Should be able to unwrap For TBT from wTBT", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
 			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
@@ -155,13 +155,13 @@ describe("TBT Contract", async () => {
 
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 
-			await rtbt.connect(investor).wrapFor(wtbtBalance, investor2.address)
+			await rtbt.connect(investor).unwrapFor(wtbtBalance, investor2.address)
 			// because 0% apr. the balance of wtbw should be equal tbt.
 			expect(await rtbt.balanceOf(investor.address)).to.be.equal(0)
 			expect(await rtbt.balanceOf(investor2.address)).to.be.equal(wtbtBalance)
 		})
 
-		it("Should not be able to wrap zero TBT", async () => {
+		it("Should not be able to unwrap zero TBT", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
 			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
@@ -169,10 +169,10 @@ describe("TBT Contract", async () => {
 
 			await wtbtPool.connect(investor).mint(amountToBuy)
 
-			await expect(rtbt.connect(investor).wrap(0)).to.be.reverted
+			await expect(rtbt.connect(investor).unwrap(0)).to.be.reverted
 		})
 
-		it("Should not be able to wrap when pause", async () => {
+		it("Should not be able to unwrap when pause", async () => {
 			now = now + ONE_DAY
 			await mineBlockWithTimestamp(ethers.provider, now)
 			const amountToBuy = ethers.utils.parseUnits("100", 6) // 100 USDC
@@ -184,11 +184,11 @@ describe("TBT Contract", async () => {
 
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 
-			await expect(rtbt.connect(investor).wrap(wtbtBalance)).to.be.reverted
+			await expect(rtbt.connect(investor).unwrap(wtbtBalance)).to.be.reverted
 		})
 	})
 
-	describe("Unwrap", async () => {
+	describe("Wrap", async () => {
 		beforeEach(async () => {
 			await wtbtPool
 				.connect(investor)
@@ -200,22 +200,22 @@ describe("TBT Contract", async () => {
 
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 
-			await rtbt.connect(investor).wrap(wtbtBalance)
+			await rtbt.connect(investor).unwrap(wtbtBalance)
 		})
 
-		it("Should be able to unwrap", async () => {
+		it("Should be able to wrap", async () => {
 			const sharesAmount = await rtbt.sharesOf(investor.address)
 
-			const unwrapAmount = ethers.utils.parseUnits("100", 18)
+			const wrapAmount = ethers.utils.parseUnits("100", 18)
 
-			const getSharesByAmount = await rtbt.getSharesByAmount(unwrapAmount)
+			const getSharesByAmount = await rtbt.getSharesByAmount(wrapAmount)
 
-			await rtbt.connect(investor).unwrap(unwrapAmount)
+			await rtbt.connect(investor).wrap(wrapAmount)
 		})
 
-		it("Should be able to unwrapAll", async () => {
+		it("Should be able to wrapAll", async () => {
 			const userSharesBefore = await rtbt.sharesOf(investor.address)
-			await rtbt.connect(investor).unwrapAll()
+			await rtbt.connect(investor).wrapAll()
 			const userSharesAfter = await rtbt.sharesOf(investor.address)
 
 			expect(userSharesAfter).to.be.equal(0)
@@ -225,14 +225,14 @@ describe("TBT Contract", async () => {
 			expect(userSharesBefore).to.be.equal(wtbtBalance)
 		})
 
-		it("Should not be able to unwrap zero TBT", async () => {
-			await expect(rtbt.connect(investor).unwrap(0)).to.be.reverted
+		it("Should not be able to wrap zero TBT", async () => {
+			await expect(rtbt.connect(investor).wrap(0)).to.be.reverted
 		})
 
-		it("Should not be able to unwrap when pause", async () => {
-			const unwrapUnderlying = ethers.utils.parseUnits("100", 18)
+		it("Should not be able to wrap when pause", async () => {
+			const wrapUnderlying = ethers.utils.parseUnits("100", 18)
 			await rtbt.connect(admin).pause()
-			await expect(rtbt.connect(investor).unwrap(unwrapUnderlying)).to.be.reverted
+			await expect(rtbt.connect(investor).wrap(wrapUnderlying)).to.be.reverted
 		})
 	})
 
@@ -256,7 +256,7 @@ describe("TBT Contract", async () => {
 		it("Should have same shares and TBT amount", async () => {
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 
-			await rtbt.connect(investor).wrap(wtbtBalance)
+			await rtbt.connect(investor).unwrap(wtbtBalance)
 
 			const userShares = await rtbt.sharesOf(investor.address)
 
@@ -265,13 +265,13 @@ describe("TBT Contract", async () => {
 
 		it("Should to be correct shares supply", async () => {
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
-			await rtbt.connect(investor).wrap(wtbtBalance)
+			await rtbt.connect(investor).unwrap(wtbtBalance)
 			const userShares = await rtbt.sharesOf(investor.address)
 			let totalSharesSupply = await rtbt.getTotalShares()
 			expect(totalSharesSupply).to.be.equal(userShares)
 
 			const wtbtBalance2 = await wtbtPool.balanceOf(investor2.address)
-			await rtbt.connect(investor2).wrap(wtbtBalance2)
+			await rtbt.connect(investor2).unwrap(wtbtBalance2)
 
 			const userShares2 = await rtbt.sharesOf(investor2.address)
 
@@ -290,7 +290,7 @@ describe("TBT Contract", async () => {
 			await usdcToken.connect(investor).approve(wtbtPool.address, amountToBuy)
 			await wtbtPool.connect(investor).mint(amountToBuy)
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
-			await rtbt.connect(investor).wrap(wtbtBalance)
+			await rtbt.connect(investor).unwrap(wtbtBalance)
 		})
 
 		it("Should be able to transfer the balance", async () => {
@@ -360,7 +360,7 @@ describe("TBT Contract", async () => {
 		it("Should be rebase balance with APR", async () => {
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 
-			await rtbt.connect(investor).wrap(wtbtBalance)
+			await rtbt.connect(investor).unwrap(wtbtBalance)
 			const rTBTBalanceBefore = await rtbt.balanceOf(investor.address)
 
 			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%
@@ -384,7 +384,7 @@ describe("TBT Contract", async () => {
 		it("Should be rebase balance with APR and manager fee", async () => {
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 
-			await rtbt.connect(investor).wrap(wtbtBalance)
+			await rtbt.connect(investor).unwrap(wtbtBalance)
 			const rTBTBalanceBefore = await rtbt.balanceOf(investor.address)
 
 			const managementFeeRate = ethers.utils.parseUnits("10", 6) // 10% manager fee
@@ -427,7 +427,7 @@ describe("TBT Contract", async () => {
 			await mint(investor, amountToBuy)
 			const wtbtBalance = await wtbtPool.balanceOf(investor.address)
 			await wtbtPool.connect(investor).approve(rtbt.address, wtbtBalance)
-			await rtbt.connect(investor).wrap(wtbtBalance)
+			await rtbt.connect(investor).unwrap(wtbtBalance)
 
 			const targetAPR = ethers.utils.parseUnits("6", 6) // 6%
 			await wtbtPool.connect(admin).setTargetAPR(targetAPR)
