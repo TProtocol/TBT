@@ -19,12 +19,14 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	const treasury = await deploy(TreasuryId, {
 		from: deployer,
 		log: true,
-		waitConfirmations: 2,
+		waitConfirmations: 5,
 		args: treasuryArgs,
 	})
 	log(`🎉 Treasury deployed at ${treasury.address}`)
 
 	if (!developmentChains.includes(network.name)) {
+		console.log("Waiting for 1min to wait for etherscan to index the contract...")
+		await new Promise((resolve) => setTimeout(resolve, 60000))
 		console.log("Verifying vault on Etherscan...")
 		await verify(treasury.address, treasuryArgs)
 	}

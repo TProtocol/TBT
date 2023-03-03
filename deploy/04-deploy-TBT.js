@@ -24,7 +24,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 		{
 			from: deployer,
 			log: true,
-			waitConfirmations: 2,
+			waitConfirmations: 10,
 		}
 	)
 
@@ -32,6 +32,10 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 
 	log(`🎉 TBT deployed at ${TBTProxy.address}`)
 	if (!developmentChains.includes(network.name)) {
+		// sleep for 1min to wait for etherscan to index the contract
+		console.log("Waiting for 1min to wait for etherscan to index the contract...")
+		await new Promise((resolve) => setTimeout(resolve, 60000))
+
 		console.log("Verifying TBT on Etherscan...")
 		await verify(TBTProxy.address)
 	}

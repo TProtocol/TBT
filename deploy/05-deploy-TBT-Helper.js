@@ -29,6 +29,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 
 	log(`🎉 TBTHelper deployed at ${TBTHelper.address}`)
 	if (!developmentChains.includes(network.name)) {
+		console.log("Waiting for 1min to wait for etherscan to index the contract...")
+		await new Promise((resolve) => setTimeout(resolve, 60000))
 		console.log("Verifying TBTHelper on Etherscan...")
 		await verify(TBTHelper.address, [
 			config.wTBTPoolV2PermissionProxyAddress,

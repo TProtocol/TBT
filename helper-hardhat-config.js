@@ -15,8 +15,8 @@ const GoerliAddressConfig = {
 	managementFeeCollecorAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
 	aprManagerAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
 
-	wTBTPoolV2PermissionProxyAddress: "0x1CF77a8435B9cE3e2485599f862a3823f378c077",
-	TBTProxyAddress: "0x9E93503fFAd054722053Aa47110ce73db771Cfd5",
+	wTBTPoolV2PermissionProxyAddress: "0x52992d3ff643963c3E304b32E5dE4e0F94B2EC53",
+	TBTProxyAddress: "0xb91D6A6cc1ad1CB329591EbCBb970c73787a9554",
 }
 
 // Mainnet Settings

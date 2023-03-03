@@ -70,6 +70,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	await wTBTPoolV2PermissionProxy.setMintInterestCostFeeRate(50000)
 
 	if (!developmentChains.includes(network.name)) {
+		console.log("Waiting for 1min to wait for etherscan to index the contract...")
+		await new Promise((resolve) => setTimeout(resolve, 60000))
 		console.log("Verifying wTBTPoolV2Permission on Etherscan...")
 		await verify(wTBTPoolV2PermissionProxy.address)
 	}
