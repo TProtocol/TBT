@@ -21,8 +21,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 		log: true,
 		waitConfirmations: 2,
 		args: [
-			config.wTBTPoolV2PermissionProxyAddress,
 			config.TBTProxyAddress,
+			config.wTBTPoolV2PermissionProxyAddress,
 			config.underlyingAddress,
 		],
 	})
@@ -33,8 +33,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 		await new Promise((resolve) => setTimeout(resolve, 60000))
 		console.log("Verifying TBTHelper on Etherscan...")
 		await verify(TBTHelper.address, [
-			config.wTBTPoolV2PermissionProxyAddress,
 			config.TBTProxyAddress,
+			config.wTBTPoolV2PermissionProxyAddress,
 			config.underlyingAddress,
 		])
 	}
