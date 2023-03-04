@@ -16,13 +16,15 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 		config.underlyingAddress,
 		[config.daiAddress, config.usdcAddress, config.usdtAddress],
 	]
-	const treasury = await deploy(TreasuryId, {
+	const deployResult = await deploy(TreasuryId, {
 		from: deployer,
 		log: true,
 		waitConfirmations: 5,
 		args: treasuryArgs,
 	})
 	log(`🎉 Treasury deployed at ${treasury.address}`)
+
+	const treasury = await ethers.getContractAt(TreasuryId, deployResult.address)
 
 	// set mint threshold, basis underlying token
 	await treasury.setMintThreshold(ethers.utils.parseUnits("100000", 6))
