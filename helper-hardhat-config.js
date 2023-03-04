@@ -34,8 +34,8 @@ const MainnetAddressConfig = {
 	managementFeeCollecorAddress: "0xdcf8636c44a2AaE3AB7B00b303a2c7dc2cf9Ff58",
 	aprManagerAddress: "0xda8d14De39B80072C0b447De5ed3722673Cf15b5",
 
-	wTBTPoolV2PermissionProxyAddress: "0x1CF77a8435B9cE3e2485599f862a3823f378c077",
-	TBTProxyAddress: "0x9E93503fFAd054722053Aa47110ce73db771Cfd5",
+	wTBTPoolV2PermissionProxyAddress: "0xD38e031f4529a07996aaB977d2B79f0e00656C56",
+	TBTProxyAddress: "0x704D77FFC23Bc350340e894DB18b04142cE056f8",
 }
 
 // Sepolia Settings
