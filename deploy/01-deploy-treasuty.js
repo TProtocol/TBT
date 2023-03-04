@@ -24,6 +24,12 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	})
 	log(`🎉 Treasury deployed at ${treasury.address}`)
 
+	// set mint threshold, basis underlying token
+	await treasury.setMintThreshold(ethers.utils.parseUnits("100000", 6))
+
+	// set redeem threshold, basis stbt token
+	await treasury.setRedeemThreshold(ethers.utils.parseUnits("100000", 18))
+
 	if (!developmentChains.includes(network.name)) {
 		console.log("Waiting for 1min to wait for etherscan to index the contract...")
 		await new Promise((resolve) => setTimeout(resolve, 60000))

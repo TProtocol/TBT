@@ -29,11 +29,11 @@ contract Treasury is AccessControl {
 	ICurve curvePool;
 
 	// mint threshold for underlying token
-	uint256 mintThreshold;
+	uint256 public mintThreshold;
 	// redeem threshold for STBT
-	uint256 redeemThreshold;
+	uint256 public redeemThreshold;
 	// convert a amount from underlying token to stbt
-	uint256 basis;
+	uint256 public basis;
 	// coins , [DAI, USDC, USDT]
 	// see https://etherscan.io/address/0x7b42d77bd2fee3c98baa58d559b83ff3bb4702cf#code
 	address[3] coins;
