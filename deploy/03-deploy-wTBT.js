@@ -66,8 +66,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	await wTBTPoolV2PermissionProxy.setRedeemFeeRate(200000)
 	// 0.1% mp redeem fee
 	await wTBTPoolV2PermissionProxy.setRedeemMPFeeRate(100000)
-	// 0.05% interest cost fee
-	await wTBTPoolV2PermissionProxy.setMintInterestCostFeeRate(50000)
+	// 0.1% interest cost fee
+	await wTBTPoolV2PermissionProxy.setMintInterestCostFeeRate(100000)
 
 	if (!developmentChains.includes(network.name)) {
 		console.log("Waiting for 1min to wait for etherscan to index the contract...")
