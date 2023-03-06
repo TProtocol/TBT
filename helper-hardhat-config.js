@@ -12,7 +12,7 @@ const GoerliAddressConfig = {
 	adminAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
 	poolManagerAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
 	feeCollectorAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
-	managementFeeCollecorAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
+	managementFeeCollectorAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
 	aprManagerAddress: "0x7a193303206f0Ea05C9C16a5652C727b8465Db52",
 
 	wTBTPoolV2PermissionProxyAddress: "0x52992d3ff643963c3E304b32E5dE4e0F94B2EC53",
@@ -31,7 +31,7 @@ const MainnetAddressConfig = {
 	adminAddress: "0x31b8939C6e55A4DDaF0d6479320A0DFD9766EE9D",
 	poolManagerAddress: "0x0dc235C3994389BE12d1E33DDB8E86147B61E56F",
 	feeCollectorAddress: "0x01a6D5FC1F8829C6f5bd3E52cE466A8a17132266",
-	managementFeeCollecorAddress: "0xdcf8636c44a2AaE3AB7B00b303a2c7dc2cf9Ff58",
+	managementFeeCollectorAddress: "0xdcf8636c44a2AaE3AB7B00b303a2c7dc2cf9Ff58",
 	aprManagerAddress: "0xda8d14De39B80072C0b447De5ed3722673Cf15b5",
 
 	wTBTPoolV2PermissionProxyAddress: "0xD38e031f4529a07996aaB977d2B79f0e00656C56",
@@ -50,7 +50,7 @@ const SepoliaAddressConfig = {
 	adminAddress: "0xEAb746DE6bd1b2714ed95AaB6945B82315613264",
 	poolManagerAddress: "0xe65C40E6b6432Ca593E5A65263d2F67f04D5958c",
 	feeCollectorAddress: "0xE4f55830f92685Ba9c321aE4aCe137d4b030626D",
-	managementFeeCollecorAddress: "0x29723F1D8824f5DE6c53819A658770afC7eF4F48",
+	managementFeeCollectorAddress: "0x29723F1D8824f5DE6c53819A658770afC7eF4F48",
 	aprManagerAddress: "0xA3404a7CB0Bbbda93581F2d2f9e5e0f3b9421bAC",
 
 	wTBTPoolV2PermissionProxyAddress: "0x1CF77a8435B9cE3e2485599f862a3823f378c077",

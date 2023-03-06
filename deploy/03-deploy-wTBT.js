@@ -36,7 +36,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 			treasury.address,
 			vault.address,
 			config.feeCollectorAddress,
-			config.managementFeeCollecorAddress,
+			config.managementFeeCollectorAddress,
 		],
 		{
 			from: deployer,
