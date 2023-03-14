@@ -151,6 +151,12 @@ contract Treasury is AccessControl {
 		return curvePool.get_dy_underlying(0, j, stbtAmount);
 	}
 
+	/// @notice get price feed answer
+	/// @return The answer of price from priceFeed
+	function latestAnswer() public view returns (int256) {
+		return priceFeed.latestAnswer();
+	}
+
 	/**
 	 * @dev if over than mint threshold, transfer all balance of underlying to mpMintPool
 	 */
