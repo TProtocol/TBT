@@ -17,7 +17,7 @@ const GoerliAddressConfig = {
 
 	wTBTPoolV2PermissionProxyAddress: "0x52992d3ff643963c3E304b32E5dE4e0F94B2EC53",
 	TBTProxyAddress: "0xb91D6A6cc1ad1CB329591EbCBb970c73787a9554",
-	recoveryFundAddress: "0x31b8939C6e55A4DDaF0d6479320A0DFD9766EE9D",
+	recoveryFundAddress: "0xEAb746DE6bd1b2714ed95AaB6945B82315613264",
 
 	// Chainlink: USDC/USD Price Feed
 	PriceFeedAddress: "0xAb5c49580294Aff77670F839ea425f5b78ab3Ae7",
@@ -54,7 +54,7 @@ const SepoliaAddressConfig = {
 	daiAddress: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
 	usdcAddress: "0x9B06975EfE73334946BC96bC411fA17B68195A5C",
 	usdtAddress: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-	adminAddress: "0x31b8939C6e55A4DDaF0d6479320A0DFD9766EE9D",
+	adminAddress: "0xEAb746DE6bd1b2714ed95AaB6945B82315613264",
 	poolManagerAddress: "0xe65C40E6b6432Ca593E5A65263d2F67f04D5958c",
 	feeCollectorAddress: "0xE4f55830f92685Ba9c321aE4aCe137d4b030626D",
 	managementFeeCollectorAddress: "0x29723F1D8824f5DE6c53819A658770afC7eF4F48",
@@ -62,7 +62,7 @@ const SepoliaAddressConfig = {
 
 	wTBTPoolV2PermissionProxyAddress: "0x1CF77a8435B9cE3e2485599f862a3823f378c077",
 	TBTProxyAddress: "0x9E93503fFAd054722053Aa47110ce73db771Cfd5",
-	recoveryFundAddress: "0x31b8939C6e55A4DDaF0d6479320A0DFD9766EE9D",
+	recoveryFundAddress: "0xEAb746DE6bd1b2714ed95AaB6945B82315613264",
 
 	// Chainlink: USDC/USD Price Feed
 	PriceFeedAddress: "0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E",
