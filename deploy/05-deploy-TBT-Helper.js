@@ -37,6 +37,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 			config.TBTProxyAddress,
 			config.wTBTPoolV2PermissionProxyAddress,
 			config.underlyingAddress,
+			config.recoveryFundAddress,
 		])
 	}
 }
