@@ -100,7 +100,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 	let investor, investor2, investor3
 	let deployer
 	let controller, mpMintPool, mpRedeemPool
-	let treasury, vault, fee_collector, manager_fee_collector
+	let treasury, vault, fee_collector, manager_fee_collector, priceFeed
 
 	let admin, poolManager, aprManager
 
@@ -142,6 +142,10 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			.connect(deployer)
 			.mint(investor2.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
 
+		const PriceFeed = await ethers.getContractFactory("MockPriceFeed")
+
+		priceFeed = await PriceFeed.deploy()
+
 		const TreasuryFactory = await ethers.getContractFactory("Treasury")
 		const VaultFactory = await ethers.getContractFactory("Vault")
 
@@ -152,6 +156,7 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			stbtToken.address,
 			usdcToken.address,
 			admin.address,
+			priceFeed.address,
 			[daiToken.address, usdcToken.address, usdtToken.address]
 		)
 		await treasury.deployed()
@@ -251,6 +256,15 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			await wtbtPool.connect(admin).pause()
 			await expect(wtbtPool.connect(investor).mint(amountToMint)).to.be.reverted
 		})
+
+		it("Should not be able to mint when depeg", async () => {
+			now = now + ONE_DAY
+			await mineBlockWithTimestamp(ethers.provider, now)
+			const amountToMint = ethers.utils.parseUnits("100", 6) // 100 USDC
+			await treasury.connect(admin).setPegPrice(100000001)
+			await usdcToken.connect(investor).approve(wtbtPool.address, amountToMint)
+			await expect(wtbtPool.connect(investor).mint(amountToMint)).to.be.revertedWith("depeg")
+		})
 	})
 
 	describe("Redeem", async () => {
@@ -293,6 +307,16 @@ describe("wTBTPool V2 Permission Contract", async () => {
 			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
 			await wtbtPool.connect(admin).pause()
 			await expect(wtbtPool.connect(investor).redeem(amountToRedeem)).to.be.reverted
+		})
+
+		it("Should not be able to redeem when depeg", async () => {
+			now = now + ONE_DAY
+			await mineBlockWithTimestamp(ethers.provider, now)
+			const amountToRedeem = await wtbtPool.connect(investor).cTokenBalances(investor.address)
+			await treasury.connect(admin).setPegPrice(100000001)
+			await expect(wtbtPool.connect(investor).redeem(amountToRedeem)).to.be.revertedWith(
+				"depeg"
+			)
 		})
 
 		it("Should not be able to redeem more than balance", async () => {

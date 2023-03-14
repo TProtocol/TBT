@@ -18,6 +18,9 @@ const GoerliAddressConfig = {
 	wTBTPoolV2PermissionProxyAddress: "0x52992d3ff643963c3E304b32E5dE4e0F94B2EC53",
 	TBTProxyAddress: "0xb91D6A6cc1ad1CB329591EbCBb970c73787a9554",
 	recoveryFundAddress: "0x31b8939C6e55A4DDaF0d6479320A0DFD9766EE9D",
+
+	// Chainlink: USDC/USD Price Feed
+	PriceFeedAddress: "0xAb5c49580294Aff77670F839ea425f5b78ab3Ae7",
 }
 
 // Mainnet Settings
@@ -38,6 +41,8 @@ const MainnetAddressConfig = {
 	wTBTPoolV2PermissionProxyAddress: "0xD38e031f4529a07996aaB977d2B79f0e00656C56",
 	TBTProxyAddress: "0x704D77FFC23Bc350340e894DB18b04142cE056f8",
 	recoveryFundAddress: "0x7d273212AED9651797701a9dFb8e636F6Ba832b2",
+	// Chainlink: USDC/USD Price Feed
+	PriceFeedAddress: "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6",
 }
 
 // Sepolia Settings
@@ -58,6 +63,9 @@ const SepoliaAddressConfig = {
 	wTBTPoolV2PermissionProxyAddress: "0x1CF77a8435B9cE3e2485599f862a3823f378c077",
 	TBTProxyAddress: "0x9E93503fFAd054722053Aa47110ce73db771Cfd5",
 	recoveryFundAddress: "0x31b8939C6e55A4DDaF0d6479320A0DFD9766EE9D",
+
+	// Chainlink: USDC/USD Price Feed
+	PriceFeedAddress: "0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E",
 }
 
 const AddressConfig = {

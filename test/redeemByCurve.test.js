@@ -16,10 +16,10 @@ describe("redeem by Curve", async () => {
 	let wtbtPool, _3Crv, _3CrvPool, stbtSwapPool
 	let usdtToken, daiToken, usdcToken, stbtToken
 
-	let investor
+	let investor, investor2, investor3
 	let deployer
 	let mpMintPool, mpRedeemPool
-	let treasury, vault, fee_collector, manager_fee_collector
+	let treasury, vault, fee_collector, manager_fee_collector, priceFeed
 
 	let admin, poolManager, aprManager
 
@@ -120,6 +120,10 @@ describe("redeem by Curve", async () => {
 			],
 			0
 		)
+		const PriceFeed = await ethers.getContractFactory("MockPriceFeed")
+
+		priceFeed = await PriceFeed.deploy()
+
 		const TreasuryFactory = await ethers.getContractFactory("Treasury")
 		const VaultFactory = await ethers.getContractFactory("Vault")
 
@@ -130,6 +134,7 @@ describe("redeem by Curve", async () => {
 			stbtToken.address,
 			usdcToken.address,
 			admin.address,
+			priceFeed.address,
 			[daiToken.address, usdcToken.address, usdtToken.address]
 		)
 		await treasury.deployed()

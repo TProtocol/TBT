@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "./interface/ICurve.sol";
+import "./interface/AggregatorInterface.sol";
 
 contract Treasury is AccessControl {
 	using SafeERC20 for IERC20;
@@ -34,8 +35,12 @@ contract Treasury is AccessControl {
 	uint256 public redeemThreshold;
 	// convert a amount from underlying token to stbt
 	uint256 public basis;
+	// target price
+	int256 public targetPrice;
 	// recovery fund wallet
 	address public recovery;
+	// priceFeed be using check USDC is pegged
+	AggregatorInterface public priceFeed;
 	// coins , [DAI, USDC, USDT]
 	// see https://etherscan.io/address/0x892D701d94a43bDBCB5eA28891DaCA2Fa22A690b#code
 	address[3] coins;
@@ -47,6 +52,7 @@ contract Treasury is AccessControl {
 		address _stbt,
 		address _underlying,
 		address _recovery,
+		address _priceFeed,
 		address[3] memory _coins
 	) {
 		require(_admin != address(0), "!_admin");
@@ -62,11 +68,13 @@ contract Treasury is AccessControl {
 		require(_stbt != address(0), "!_stbt");
 		require(_underlying != address(0), "!_underlying");
 		require(_recovery != address(0), "!_recovery");
+		require(_priceFeed != address(0), "!_priceFeed");
 		mpMintPool = _mpMintPool;
 		mpRedeemPool = _mpRedeemPool;
 		recovery = _recovery;
 		stbt = IERC20(_stbt);
 		underlying = IERC20(_underlying);
+		priceFeed = AggregatorInterface(_priceFeed);
 
 		uint256 underlyingDecimals = ERC20(_underlying).decimals();
 
@@ -83,7 +91,6 @@ contract Treasury is AccessControl {
 		mpMintPool = _mintPool;
 	}
 
-	
 	/**
 	 * @dev to set the redeem pool
 	 * @param _redeemPool the address of redeem pool
@@ -119,6 +126,14 @@ contract Treasury is AccessControl {
 	}
 
 	/**
+	 * @dev to set the price
+	 * @param _targetPrice the target price of usdc
+	 */
+	function setPegPrice(int256 _targetPrice) external onlyRole(MANAGER_ROLE) {
+		targetPrice = _targetPrice;
+	}
+
+	/**
 	 * @dev convert underlying amount to stbt
 	 */
 	function getSTBTbyUnderlyingAmount(uint256 amount) public view returns (uint256) {
@@ -140,6 +155,7 @@ contract Treasury is AccessControl {
 	 * @dev if over than mint threshold, transfer all balance of underlying to mpMintPool
 	 */
 	function mintSTBT() external onlyRole(WTBTPOOL_ROLE) {
+		require(priceFeed.latestAnswer() >= targetPrice, "depeg");
 		uint256 balance = underlying.balanceOf(address(this));
 		if (balance >= mintThreshold) {
 			underlying.safeTransfer(mpMintPool, balance);
@@ -153,6 +169,7 @@ contract Treasury is AccessControl {
 	function redeemSTBT(uint256 amount) external onlyRole(WTBTPOOL_ROLE) {
 		// convert to stbt amount
 		uint256 stbtAmount = amount.mul(basis);
+		require(priceFeed.latestAnswer() >= targetPrice, "depeg");
 		require(stbtAmount >= redeemThreshold, "less than redeemThreshold");
 		stbt.safeTransfer(mpRedeemPool, stbtAmount);
 	}

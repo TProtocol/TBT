@@ -18,18 +18,12 @@ describe("TBT Contract", async () => {
 	let wtbtPool
 	let usdtToken, daiToken, usdcToken, stbtToken
 
-	let investor
-	let investor2
-	let investor3
+	let investor, investor2, investor3
 	let deployer
-	let controller, mpMintPool, mpRedeemPool
-	let treasury
-	let vault
-	let fee_collector
-	let manager_fee_collector
+	let mpMintPool, mpRedeemPool
+	let treasury, vault, fee_collector, manager_fee_collector, priceFeed
 
-	let admin
-	let poolManager
+	let admin, poolManager, aprManager
 
 	let now
 
@@ -71,6 +65,10 @@ describe("TBT Contract", async () => {
 			.connect(deployer)
 			.mint(investor2.address, ethers.utils.parseUnits("1000000000", 6)) // 1 billion USDC
 
+		const PriceFeed = await ethers.getContractFactory("MockPriceFeed")
+
+		priceFeed = await PriceFeed.deploy()
+
 		const TreasuryFactory = await ethers.getContractFactory("Treasury")
 
 		treasury = await TreasuryFactory.connect(deployer).deploy(
@@ -80,6 +78,7 @@ describe("TBT Contract", async () => {
 			stbtToken.address,
 			usdcToken.address,
 			admin.address,
+			priceFeed.address,
 			[daiToken.address, usdcToken.address, usdtToken.address]
 		)
 		await treasury.deployed()
