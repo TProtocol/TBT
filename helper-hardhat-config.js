@@ -39,7 +39,7 @@ const MainnetAddressConfig = {
 	aprManagerAddress: "0xda8d14De39B80072C0b447De5ed3722673Cf15b5",
 
 	wTBTPoolV2PermissionProxyAddress: "0xD38e031f4529a07996aaB977d2B79f0e00656C56",
-	TBTProxyAddress: "0x704D77FFC23Bc350340e894DB18b04142cE056f8",
+	TBTProxyAddress: "0x07Ac55797D4F43f57cA92a49E65ca582cC287c27",
 	recoveryFundAddress: "0x7d273212AED9651797701a9dFb8e636F6Ba832b2",
 	// Chainlink: USDC/USD Price Feed
 	PriceFeedAddress: "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6",
