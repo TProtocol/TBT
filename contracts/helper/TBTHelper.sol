@@ -17,12 +17,16 @@ contract TBTHelper is AccessControl {
 	address public tbt;
 	address public wtbt;
 	IERC20 public underlyingToken;
+	// recovery fund wallet
+	address public recovery;
 
-	constructor(address _tbt, address _wtbt, address _underlyingToken) {
+	constructor(address _tbt, address _wtbt, address _underlyingToken, address _recovery) {
 		_setupRole(ADMIN_ROLE, msg.sender);
 		tbt = _tbt;
 		wtbt = _wtbt;
 		underlyingToken = IERC20(_underlyingToken);
+		require(_recovery != address(0), "!_recovery");
+		recovery = _recovery;
 	}
 
 	/**

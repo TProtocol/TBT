@@ -8,7 +8,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 
 	const config = AddressConfig[network.config.chainId]
 
-	const vaultArgs = [config.adminAddress, config.underlyingAddress]
+	const vaultArgs = [config.adminAddress, config.recoveryFundAddress, config.underlyingAddress]
 	const vault = await deploy(VaultId, {
 		from: deployer,
 		log: true,

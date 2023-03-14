@@ -14,6 +14,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 		config.mpRedeemPoolAddress,
 		config.stbtAddress,
 		config.underlyingAddress,
+		config.recoveryFundAddress,
 		[config.daiAddress, config.usdcAddress, config.usdtAddress],
 	]
 	const deployResult = await deploy(TreasuryId, {

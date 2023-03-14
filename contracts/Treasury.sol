@@ -25,7 +25,7 @@ contract Treasury is AccessControl {
 	// underlying token address
 	IERC20 public underlying;
 	// STBT curve pool
-	// Mainnet: 0x7B42d77bd2feE3c98baA58D559B83Ff3bB4702cf
+	// Mainnet: 0x892D701d94a43bDBCB5eA28891DaCA2Fa22A690b
 	ICurve curvePool;
 
 	// mint threshold for underlying token
@@ -34,8 +34,10 @@ contract Treasury is AccessControl {
 	uint256 public redeemThreshold;
 	// convert a amount from underlying token to stbt
 	uint256 public basis;
+	// recovery fund wallet
+	address public recovery;
 	// coins , [DAI, USDC, USDT]
-	// see https://etherscan.io/address/0x7b42d77bd2fee3c98baa58d559b83ff3bb4702cf#code
+	// see https://etherscan.io/address/0x892D701d94a43bDBCB5eA28891DaCA2Fa22A690b#code
 	address[3] coins;
 
 	constructor(
@@ -44,6 +46,7 @@ contract Treasury is AccessControl {
 		address _mpRedeemPool,
 		address _stbt,
 		address _underlying,
+		address _recovery,
 		address[3] memory _coins
 	) {
 		require(_admin != address(0), "!_admin");
@@ -58,8 +61,10 @@ contract Treasury is AccessControl {
 		require(_mpRedeemPool != address(0), "!_mpRedeemPool");
 		require(_stbt != address(0), "!_stbt");
 		require(_underlying != address(0), "!_underlying");
+		require(_recovery != address(0), "!_recovery");
 		mpMintPool = _mpMintPool;
 		mpRedeemPool = _mpRedeemPool;
+		recovery = _recovery;
 		stbt = IERC20(_stbt);
 		underlying = IERC20(_underlying);
 
@@ -78,6 +83,7 @@ contract Treasury is AccessControl {
 		mpMintPool = _mintPool;
 	}
 
+	
 	/**
 	 * @dev to set the redeem pool
 	 * @param _redeemPool the address of redeem pool
@@ -208,15 +214,14 @@ contract Treasury is AccessControl {
 	}
 
 	/**
-	 * @dev Allows to recover any ERC20 token
-	 * @param tokenAddress Address of the token to recover
+	 * @dev Allows to recovery any ERC20 token
+	 * @param tokenAddress Address of the token to recovery
 	 * @param amountToRecover Amount of collateral to transfer
 	 */
 	function recoverERC20(
-		address recover,
 		address tokenAddress,
 		uint256 amountToRecover
 	) external onlyRole(ADMIN_ROLE) {
-		IERC20(tokenAddress).safeTransfer(recover, amountToRecover);
+		IERC20(tokenAddress).safeTransfer(recovery, amountToRecover);
 	}
 }

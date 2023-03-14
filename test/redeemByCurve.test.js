@@ -129,11 +129,12 @@ describe("redeem by Curve", async () => {
 			mpRedeemPool.address,
 			stbtToken.address,
 			usdcToken.address,
+			admin.address,
 			[daiToken.address, usdcToken.address, usdtToken.address]
 		)
 		await treasury.deployed()
 
-		vault = await VaultFactory.deploy(admin.address, usdcToken.address)
+		vault = await VaultFactory.deploy(admin.address, usdcToken.address, admin.address)
 		await vault.deployed()
 
 		wTBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")
