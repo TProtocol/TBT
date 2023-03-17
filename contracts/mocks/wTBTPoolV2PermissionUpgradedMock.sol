@@ -41,7 +41,7 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	mapping(address => uint256) public cTokenBalances;
 
 	uint256 public cTokenTotalSupply;
-	uint256 public totalUnderlying;
+	uint256 private totalUnderlying;
 	uint256 public lastCheckpoint;
 	uint256 public capitalLowerBound;
 	IERC20Upgradeable public underlyingToken;
@@ -217,7 +217,9 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	 * @dev to set the collector of manager fee
 	 * @param _managementFeeCollector the address of manager collector
 	 */
-	function setManagementFeeCollector(address _managementFeeCollector) external onlyRole(ADMIN_ROLE) {
+	function setManagementFeeCollector(
+		address _managementFeeCollector
+	) external onlyRole(ADMIN_ROLE) {
 		require(_managementFeeCollector != address(0), "109");
 		managementFeeCollector = _managementFeeCollector;
 	}
@@ -274,7 +276,9 @@ contract wTBTPoolV2PermissionUpgradedMock is
 	 * @dev to set the rate of interest cost mint fee
 	 * @param _mintInterestCostFeeRate the rate. it should be multiply 10**6
 	 */
-	function setMintInterestCostFeeRate(uint256 _mintInterestCostFeeRate) external onlyRole(POOL_MANAGER_ROLE) {
+	function setMintInterestCostFeeRate(
+		uint256 _mintInterestCostFeeRate
+	) external onlyRole(POOL_MANAGER_ROLE) {
 		require(_mintInterestCostFeeRate <= maxMintFeeRate, "Mint fee rate should be less than 1%");
 		mintInterestCostFeeRate = _mintInterestCostFeeRate;
 	}
@@ -323,7 +327,7 @@ contract wTBTPoolV2PermissionUpgradedMock is
 		uint256 managerIncome = totalInterest.mul(managementFeeRate).div(FEE_COEFFICIENT);
 		return totalUnderlying.add(totalInterest).sub(managerIncome);
 	}
-	
+
 	/**
 	 * @dev get pending manager fee
 	 */
@@ -514,7 +518,16 @@ contract wTBTPoolV2PermissionUpgradedMock is
 
 		totalPendingRedeems = totalPendingRedeems.add(amountAfterFee);
 
-		emit RedeemRequested(redeemIndex, block.timestamp, msg.sender, amount, underlyingAmount, amountAfterFee, redeemMPFeeAmount, redeemFeeAmount);
+		emit RedeemRequested(
+			redeemIndex,
+			block.timestamp,
+			msg.sender,
+			amount,
+			underlyingAmount,
+			amountAfterFee,
+			redeemMPFeeAmount,
+			redeemFeeAmount
+		);
 	}
 
 	/**
