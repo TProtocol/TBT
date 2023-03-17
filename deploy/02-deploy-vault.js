@@ -40,7 +40,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	let TREASURY_ROLE = await vault.TREASURY_ROLE()
 	await vault.grantRole(TREASURY_ROLE, treasury.address)
 	// set vault address
-	await treasury.setValut(vault.address)
+	await treasury.setVault(vault.address)
 
 	if (!developmentChains.includes(network.name)) {
 		console.log("Waiting for 1min to wait for etherscan to index the contract...")
