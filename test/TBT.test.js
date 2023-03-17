@@ -88,11 +88,12 @@ describe("TBT Contract", async () => {
 		vault = await VaultFactory.connect(deployer).deploy(
 			admin.address,
 			usdcToken.address,
+			stbtToken.address,
 			admin.address
 		)
 		await vault.deployed()
 
-		wTBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")
+		const wTBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")
 		wtbtPool = await upgrades.deployProxy(wTBTPool, [
 			"TBT Pool",
 			"wTBT",
@@ -125,6 +126,11 @@ describe("TBT Contract", async () => {
 		await treasury.connect(admin).grantRole(WTBTPOOL_ROLE, wtbtPool.address)
 		WTBTPOOL_ROLE = await vault.WTBTPOOL_ROLE()
 		await vault.connect(admin).grantRole(WTBTPOOL_ROLE, wtbtPool.address)
+		let TREASURY_ROLE = await vault.TREASURY_ROLE()
+		await vault.connect(admin).grantRole(TREASURY_ROLE, treasury.address)
+
+		// set vault address
+		await treasury.connect(admin).setVault(vault.address)
 	})
 
 	describe("Unwrap", async () => {

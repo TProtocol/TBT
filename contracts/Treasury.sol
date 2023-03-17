@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "./interface/ICurve.sol";
 import "./interface/AggregatorInterface.sol";
+import "./interface/IVault.sol";
 
 contract Treasury is AccessControl {
 	using SafeERC20 for IERC20;
@@ -21,6 +22,8 @@ contract Treasury is AccessControl {
 	address public mpMintPool;
 	// used to redeem stbt
 	address public mpRedeemPool;
+	// vault address
+	IVault public vault;
 	// stbt address
 	IERC20 public stbt;
 	// underlying token address
@@ -80,6 +83,15 @@ contract Treasury is AccessControl {
 
 		basis = 10 ** (uint256(ERC20(_stbt).decimals() - underlyingDecimals));
 		coins = _coins;
+	}
+
+	/**
+	 * @dev to set the vault address
+	 * @param _vault the address of vault
+	 */
+	function setVault(address _vault) external onlyRole(ADMIN_ROLE) {
+		require(_vault != address(0), "!_vault");
+		vault = IVault(_vault);
 	}
 
 	/**
@@ -177,7 +189,8 @@ contract Treasury is AccessControl {
 		uint256 stbtAmount = amount.mul(basis);
 		require(priceFeed.latestAnswer() >= targetPrice, "depeg");
 		require(stbtAmount >= redeemThreshold, "less than redeemThreshold");
-		stbt.safeTransfer(mpRedeemPool, stbtAmount);
+		stbt.safeTransfer(address(vault), stbtAmount);
+		vault.redeemSTBT(mpRedeemPool, stbtAmount);
 	}
 
 	/**

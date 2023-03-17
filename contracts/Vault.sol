@@ -9,13 +9,16 @@ contract Vault is AccessControl {
 
 	bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 	bytes32 public constant WTBTPOOL_ROLE = keccak256("WTBTPOOL_ROLE");
+	bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
 
 	// underlying token address
 	IERC20 public underlying;
+	// STBT token address
+	IERC20 public stbt;
 	// recovery fund wallet
 	address public recovery;
 
-	constructor(address _admin, address _underlying, address _recovery) {
+	constructor(address _admin, address _underlying, address _stbt, address _recovery) {
 		require(_admin != address(0), "!_admin");
 
 		_setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
@@ -24,7 +27,9 @@ contract Vault is AccessControl {
 
 		require(_underlying != address(0), "!_underlying");
 		require(_recovery != address(0), "!_recovery");
+		require(_stbt != address(0), "!_stbt");
 		underlying = IERC20(_underlying);
+		stbt = IERC20(_stbt);
 		recovery = _recovery;
 	}
 
@@ -35,6 +40,15 @@ contract Vault is AccessControl {
 	 */
 	function withdrawToUser(address user, uint256 amount) external onlyRole(WTBTPOOL_ROLE) {
 		underlying.safeTransfer(user, amount);
+	}
+
+	/**
+	 * @dev Transfer a give amout of stbt to matrixport's mint pool
+	 * @param mpRedeemPool user address
+	 * @param stbtAmount the amout of underlying
+	 */
+	function redeemSTBT(address mpRedeemPool, uint256 stbtAmount) external onlyRole(TREASURY_ROLE) {
+		stbt.safeTransfer(mpRedeemPool, stbtAmount);
 	}
 
 	/**

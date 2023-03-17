@@ -139,10 +139,15 @@ describe("redeem by Curve", async () => {
 		)
 		await treasury.deployed()
 
-		vault = await VaultFactory.deploy(admin.address, usdcToken.address, admin.address)
+		vault = await VaultFactory.deploy(
+			admin.address,
+			usdcToken.address,
+			stbtToken.address,
+			admin.address
+		)
 		await vault.deployed()
 
-		wTBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")
+		const wTBTPool = await ethers.getContractFactory("wTBTPoolV2Permission")
 		wtbtPool = await upgrades.deployProxy(wTBTPool, [
 			"wTBT Pool",
 			"wTBT",
@@ -166,6 +171,8 @@ describe("redeem by Curve", async () => {
 		await treasury.connect(admin).grantRole(WTBTPOOL_ROLE, wtbtPool.address)
 		WTBTPOOL_ROLE = await vault.WTBTPOOL_ROLE()
 		await vault.connect(admin).grantRole(WTBTPOOL_ROLE, wtbtPool.address)
+		let TREASURY_ROLE = await vault.TREASURY_ROLE()
+		await vault.connect(admin).grantRole(TREASURY_ROLE, treasury.address)
 
 		let MANAGER_ROLE = await treasury.MANAGER_ROLE()
 		await treasury.connect(admin).grantRole(MANAGER_ROLE, poolManager.address)
@@ -176,6 +183,8 @@ describe("redeem by Curve", async () => {
 
 		// set curve pool
 		await treasury.connect(admin).setCurvePool(stbtSwapPool.address)
+		// set vault address
+		await treasury.connect(admin).setVault(vault.address)
 
 		// test list
 		testTokenList = [daiToken, usdcToken, usdtToken]
