@@ -43,6 +43,8 @@ const MainnetAddressConfig = {
 	recoveryFundAddress: "0x7d273212AED9651797701a9dFb8e636F6Ba832b2",
 	// Chainlink: USDC/USD Price Feed
 	PriceFeedAddress: "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6",
+
+	safeWalletAddress: "0xbe5405162EA2284F5890326E83ECb831d88B32f7"
 }
 
 // Sepolia Settings
@@ -80,6 +82,7 @@ const VaultId = "Vault"
 const wTBTPoolV2PermissionId = "wTBTPoolV2Permission"
 const TBTId = "TBT"
 const TBTHelperId = "TBTHelper"
+const TimelockId = "Timelock"
 
 module.exports = {
 	developmentChains,
@@ -89,4 +92,5 @@ module.exports = {
 	wTBTPoolV2PermissionId,
 	TBTId,
 	TBTHelperId,
+	TimelockId
 }
