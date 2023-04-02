@@ -21,6 +21,8 @@ const GoerliAddressConfig = {
 
 	// Chainlink: USDC/USD Price Feed
 	PriceFeedAddress: "0xAb5c49580294Aff77670F839ea425f5b78ab3Ae7",
+
+	safeWalletAddress: "0xbe5405162EA2284F5890326E83ECb831d88B32f7",
 }
 
 // Mainnet Settings
@@ -44,7 +46,7 @@ const MainnetAddressConfig = {
 	// Chainlink: USDC/USD Price Feed
 	PriceFeedAddress: "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6",
 
-	safeWalletAddress: "0xbe5405162EA2284F5890326E83ECb831d88B32f7"
+	safeWalletAddress: "0xbe5405162EA2284F5890326E83ECb831d88B32f7",
 }
 
 // Sepolia Settings
@@ -68,6 +70,8 @@ const SepoliaAddressConfig = {
 
 	// Chainlink: USDC/USD Price Feed
 	PriceFeedAddress: "0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E",
+	
+	safeWalletAddress: "0xbe5405162EA2284F5890326E83ECb831d88B32f7",
 }
 
 const AddressConfig = {
